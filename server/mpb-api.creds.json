@@ -1,0 +1,10 @@
+{
+  "192.168.53.61": {
+    "clientId": "mpbbalance",
+    "clientSecret": "nJJ5lPX4XSVCrvAO40e1LSzqFIsKiZ7F"
+  },
+  "192.168.180.22": {
+    "clientId": "mpbbalance",
+    "clientSecret": "REPLACE_WITH_180_22_SECRET"
+  }
+}

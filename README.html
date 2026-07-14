@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VSP360 MPB Load Balancer — README</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --red:#FA000F; --red2:#CC0000; --black:#0C0C0C;
+    --g1:#F4F4F4; --g2:#E4E4E4; --g3:#C9C9C9; --g5:#6B6B6B; --g6:#3A3A3A;
+    --ink:#1A1A1A; --sub:#5A5A5A; --tert:#8A8A8A;
+    --sans:'Hanken Grotesk',system-ui,-apple-system,sans-serif;
+    --mono:'IBM Plex Mono',ui-monospace,Menlo,monospace;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;background:var(--g1);color:var(--ink);font-family:var(--sans);font-size:16px;line-height:1.6;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:920px;margin:0 auto;padding:0 24px 96px}
+  header.hero{background:var(--black);color:#fff;margin-bottom:40px}
+  .hero-inner{max-width:920px;margin:0 auto;padding:44px 24px 40px}
+  .wordmark{font-weight:800;letter-spacing:.14em;font-size:22px}
+  .kicker{font-size:11px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:rgba(255,255,255,.55);margin-top:4px}
+  h1{font-weight:800;letter-spacing:-.02em;font-size:40px;line-height:1.08;margin:20px 0 12px}
+  .hero p{color:rgba(255,255,255,.8);font-size:17px;max-width:70ch;margin:0}
+  .rule{width:48px;height:4px;background:var(--red);border:0;margin:22px 0 0}
+  h2{font-weight:800;letter-spacing:-.01em;font-size:26px;margin:48px 0 8px;padding-top:16px;border-top:1px solid var(--g2)}
+  h3{font-weight:700;font-size:18px;margin:28px 0 6px}
+  .overline{font-size:11px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--tert)}
+  p{margin:10px 0}
+  a{color:var(--red2);text-decoration:none;border-bottom:1px solid rgba(204,0,0,.28)}
+  a:hover{border-bottom-color:var(--red2)}
+  ul,ol{padding-left:22px;margin:10px 0}
+  li{margin:5px 0}
+  strong{font-weight:700}
+  code{font-family:var(--mono);font-size:.86em;background:var(--g2);padding:1px 6px;border-radius:4px;color:var(--g6)}
+  pre{font-family:var(--mono);font-size:13px;line-height:1.65;background:var(--black);color:#e8e8e8;border-radius:6px;padding:16px 18px;overflow-x:auto;margin:14px 0;border:1px solid rgba(255,255,255,.08)}
+  pre code{background:none;padding:0;color:inherit;font-size:inherit}
+  blockquote{margin:16px 0;padding:12px 18px;background:#fff;border-left:4px solid var(--red);border-radius:0 4px 4px 0;color:var(--sub)}
+  blockquote strong{color:var(--red2)}
+  table{width:100%;border-collapse:collapse;margin:14px 0;font-size:14px}
+  th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--g2);vertical-align:top}
+  th{font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--tert)}
+  td code{white-space:nowrap}
+  .card{background:#fff;border:1px solid var(--g2);border-radius:8px;padding:22px 26px;margin:18px 0}
+  .toc{background:#fff;border:1px solid var(--g2);border-radius:8px;padding:18px 24px;margin:0 0 8px;columns:2;column-gap:36px}
+  .toc a{display:block;padding:3px 0;border:0;font-size:14.5px;break-inside:avoid}
+  .toc a:hover{color:var(--red2)}
+  .lead{font-size:17px;color:var(--sub)}
+  .fig{color:var(--red);font-weight:800}
+  footer{color:var(--tert);font-size:13px;margin-top:56px;padding-top:20px;border-top:1px solid var(--g2)}
+  @media(max-width:640px){.toc{columns:1}h1{font-size:30px}.hero-inner{padding:32px 20px}}
+</style>
+</head>
+<body>
+<header class="hero">
+  <div class="hero-inner">
+    <div class="wordmark">HITACHI</div>
+    <div class="kicker">MPB Load Balancer</div>
+    <h1>VSP360 MPB Load Balancer</h1>
+    <p>A web console that reads per-LDEV performance metrics from a Hitachi VSP One / VSP360 array and computes an MP Blade rebalancing plan — which LDEVs to move between processor blades to even out the load.</p>
+    <hr class="rule">
+  </div>
+</header>
+
+<div class="wrap">
+
+  <nav class="toc" aria-label="Contents">
+    <a href="#what">What it does</a>
+    <a href="#model">The load-score model</a>
+    <a href="#arch">Architecture</a>
+    <a href="#files">Files</a>
+    <a href="#deploy">Deploy on CentOS 9</a>
+    <a href="#config">Configuration</a>
+    <a href="#usage">Usage</a>
+    <a href="#ops">Operations &amp; troubleshooting</a>
+    <a href="#github">Publishing to GitHub</a>
+  </nav>
+
+  <p class="lead">It re-implements the scoring + greedy/swap balancer from
+    <a href="https://github.com/visubramaniam/LDEV_MPB_Balancing">LDEV_MPB_Balancing</a>
+    entirely in the browser, and adds charts, live metric fetching, and JSON/CSV export.
+    Styled with the Hitachi Vantara design system.</p>
+
+  <h2 id="what">What it does</h2>
+  <ul>
+    <li><strong>Live metrics</strong> — pick a VSP360 host, a storage-system name filter, and a time range (24 h / 7 d / 30 d); the app fetches averaged per-LDEV metrics and scores them.</li>
+    <li><strong>Overview</strong> — array serial, MP-blade count, LDEV count, before/after imbalance, and before/after load charts with the tolerance band.</li>
+    <li><strong>Balance Plan</strong> — before/after per-MPB tables and the ordered migration (move/swap) list to reach the target tolerance.</li>
+    <li><strong>LDEVs</strong> — sortable inventory with Random/Sequential decomposition and load score.</li>
+    <li><strong>Settings</strong> — live sliders: tolerance, random-I/O threshold, write-penalty factor, top-N.</li>
+    <li><strong>Export</strong> — full result as JSON, or the migration plan as CSV.</li>
+    <li><strong>Live request-flow feed</strong> — the Data Source screen streams each step of a fetch (proxy hop, OAuth token, per-chunk ClearSight query progress via Server-Sent Events, response, parse) with an elapsed timer.</li>
+    <li><strong>Public demo mode</strong> — when served from a <code>*.github.io</code> host (or with <code>?demo=1</code>), the app hides the live-API panel, shows a DEMO banner, and runs on the bundled sample dataset — fully self-contained, no backend.</li>
+    <li><strong>Offline modes</strong> — a built-in sample dataset and a "paste JSON export" path, so the tool is usable without API access.</li>
+  </ul>
+
+  <h3 id="model">The load-score model</h3>
+  <pre><code>RandomRatio  (RndR)  derived from average I/O size (≤4 KB = fully random, ≥ threshold KB = fully sequential)
+WeightedIOPS = ReadIOPS + W · WriteIOPS
+WeightedMBps = ReadMBps + W · WriteMBps
+LoadScore    = RndR · WeightedIOPS + (1−RndR) · WeightedMBps</code></pre>
+  <p><code>W</code> (write-penalty factor, default 2) and the KB threshold (default 64) are adjustable in Settings. The balancer moves/swaps LDEVs between blades until every blade is within ±tolerance of the average, or reports that a single oversized LDEV makes the array irreducible (a volume can't be split across blades).</p>
+
+  <h2 id="arch">Architecture</h2>
+  <pre><code>Browser ──HTTPS──> nginx ──┬─ /                serves the static app (index.html + assets)
+                           └─ /api/  ─proxy─>  mpb-api Node service (127.0.0.1:3001)
+                                                   │  holds the OAuth client secret
+                                                   │  gets a token per VSP host
+                                                   └─ queries ClearSight dbapi.do,
+                                                      splits long ranges into chunks,
+                                                      averages, returns compact JSON</code></pre>
+  <p>Why the Node service exists: browsers can't call a self-signed VSP management host directly (CORS + certificate + the OAuth secret must not live in client code). The service keeps the <strong>client secret server-side</strong>, does the token exchange, and returns only averaged data over the same origin as the app.</p>
+
+  <h3>Service endpoints <span class="overline">behind /api/</span></h3>
+  <table>
+    <thead><tr><th>Endpoint</th><th>Purpose</th></tr></thead>
+    <tbody>
+      <tr><td><code>GET /api/health</code></td><td>Liveness (<code>{"ok":true}</code>).</td></tr>
+      <tr><td><code>GET /api/config</code></td><td>Default host, host list (populates the UI dropdown), and <code>chunkDays</code>.</td></tr>
+      <tr><td><code>GET /api/metrics/stream</code></td><td><strong>Server-Sent Events</strong>: a <code>start</code> event, one <code>progress</code> event per completed chunk, then a <code>result</code> event with the aggregated payload (or an <code>error</code> event). Drives the live per-chunk feed.</td></tr>
+      <tr><td><code>GET /api/metrics</code></td><td>The same aggregation as a single JSON response (automatic fallback when SSE is unavailable).</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Public demo mode</h3>
+  <p>Served from a <code>*.github.io</code> host — or any URL with <code>?demo=1</code> — the app runs as a self-contained demo: a DEMO banner appears, the live-API panel is hidden, and it loads the bundled sample dataset. No backend calls, no secrets. Useful for a read-only public preview of the interface; live array data still requires the nginx + Node deployment on an in-network host.</p>
+
+  <h3 id="files">Files</h3>
+  <table>
+    <thead><tr><th>Path</th><th>Purpose</th></tr></thead>
+    <tbody>
+      <tr><td><code>index.html</code> <span class="overline">= MPB Load Balancer.dc.html</span></td><td>The app — open directly in a browser.</td></tr>
+      <tr><td><code>support.js</code></td><td>Runtime the app needs (keep beside it).</td></tr>
+      <tr><td><code>assets/</code></td><td>Logo + line icons.</td></tr>
+      <tr><td><code>_ds/…</code></td><td>Hitachi Vantara design tokens / bundle.</td></tr>
+      <tr><td><code>server/server.js</code></td><td>The mpb-api token-proxy (zero npm deps).</td></tr>
+      <tr><td><code>server/mpb-api.env</code></td><td>Non-secret config + fallback secret.</td></tr>
+      <tr><td><code>server/mpb-api.creds.json</code></td><td>Per-host OAuth credentials (secrets).</td></tr>
+      <tr><td><code>server/mpb-api.service</code></td><td>systemd unit.</td></tr>
+      <tr><td><code>README.md</code> / <code>DEPLOY.md</code></td><td>This guide + extended notes.</td></tr>
+    </tbody>
+  </table>
+
+  <h2 id="deploy">Deploy on CentOS Stream 9 (nginx + Node)</h2>
+  <p>Prerequisites: a CentOS 9 host, DNS/hosts pointing your chosen name at it, and the VSP360 OAuth client id/secret(s).</p>
+
+  <h3>1. Install packages</h3>
+  <pre><code>sudo dnf install -y nginx nodejs
+sudo systemctl enable --now nginx
+sudo firewall-cmd --permanent --add-service=http --add-service=https
+sudo firewall-cmd --reload</code></pre>
+
+  <h3>2. Deploy the static app</h3>
+  <pre><code>sudo mkdir -p /var/www/mpb
+sudo cp "MPB Load Balancer.dc.html" /var/www/mpb/index.html
+sudo cp support.js /var/www/mpb/
+sudo cp -R assets _ds /var/www/mpb/
+sudo chown -R nginx:nginx /var/www/mpb
+sudo chcon -Rt httpd_sys_content_t /var/www/mpb        # SELinux: allow nginx to read</code></pre>
+
+  <h3>3. Install the mpb-api service</h3>
+  <pre><code>sudo dnf install -y nodejs
+sudo useradd -r -s /sbin/nologin mpbapi 2>/dev/null || true
+sudo mkdir -p /opt/mpb-api
+sudo cp server/server.js /opt/mpb-api/
+sudo chown -R mpbapi:mpbapi /opt/mpb-api
+
+# non-secret config + fallback secret (read by systemd as root)
+sudo cp server/mpb-api.env /etc/mpb-api.env
+sudo chown root:root /etc/mpb-api.env &amp;&amp; sudo chmod 600 /etc/mpb-api.env
+
+# per-host OAuth secrets (read by the Node process — must be mpbapi-readable)
+sudo cp server/mpb-api.creds.json /etc/mpb-api.creds.json
+sudo chown mpbapi:mpbapi /etc/mpb-api.creds.json &amp;&amp; sudo chmod 600 /etc/mpb-api.creds.json
+
+sudo cp server/mpb-api.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now mpb-api</code></pre>
+  <p>Now edit the two config files for your environment (see <a href="#config">Configuration</a>), then <code>sudo systemctl restart mpb-api</code>.</p>
+
+  <h3>4. Point nginx at both</h3>
+  <p>Create <code>/etc/nginx/conf.d/mpb.conf</code> (swap in your server name / TLS):</p>
+  <pre><code>server {
+    listen 443 ssl;
+    server_name mpb.storage.idc.coe.hv;
+
+    ssl_certificate     /etc/pki/nginx/mpb.crt;      # self-signed or internal CA
+    ssl_certificate_key /etc/pki/nginx/mpb.key;
+
+    root /var/www/mpb;
+    index index.html;
+    location / { try_files $uri $uri/ /index.html; }
+
+    location /api/ {
+        proxy_pass            http://127.0.0.1:3001/;
+        proxy_connect_timeout 30s;
+        proxy_send_timeout    600s;   # long ranges = many chunks in one response
+        proxy_read_timeout    600s;
+        proxy_buffering       off;    # stream SSE per-chunk progress un-buffered
+    }
+}
+server {                             # redirect http -> https
+    listen 80;
+    server_name mpb.storage.idc.coe.hv;
+    return 301 https://$host$request_uri;
+}</code></pre>
+  <pre><code>sudo setsebool -P httpd_can_network_connect 1        # SELinux: allow nginx -> localhost:3001
+sudo nginx -t &amp;&amp; sudo systemctl reload nginx</code></pre>
+  <p>A self-signed cert (internal name — Let's Encrypt can't issue for it):</p>
+  <pre><code>sudo mkdir -p /etc/pki/nginx
+sudo openssl req -x509 -nodes -days 825 -newkey rsa:2048 \
+  -keyout /etc/pki/nginx/mpb.key -out /etc/pki/nginx/mpb.crt \
+  -subj "/CN=mpb.storage.idc.coe.hv" \
+  -addext "subjectAltName=DNS:mpb.storage.idc.coe.hv"
+sudo restorecon -Rv /etc/pki/nginx</code></pre>
+
+  <h3>5. Verify</h3>
+  <pre><code>sudo journalctl -u mpb-api -n 5 --no-pager     # "loaded credentials for N host(s)"
+curl -s http://127.0.0.1:3001/health           # {"ok":true}
+curl -s http://127.0.0.1:3001/config           # host list + defaults
+curl -s 'http://127.0.0.1:3001/metrics?range=24h&amp;storage=B85&amp;host=192.168.53.61' | head -c 120</code></pre>
+  <p>Then browse to <code>https://&lt;your-name&gt;/</code> and click <strong>Fetch live metrics</strong>.</p>
+
+  <h2 id="config">Configuration</h2>
+
+  <h3><code>/etc/mpb-api.env</code> <span class="overline">non-secret; read by systemd</span></h3>
+  <pre><code>CLIENT_ID=mpbbalance
+CLIENT_SECRET=&lt;fallback secret for hosts not in the creds file&gt;
+PORT=3001
+BIND=127.0.0.1
+STORAGE=DC1-B28-B          # default storage-system name filter (regex)
+# VSP_HOST=192.168.53.61   # optional fallback host for raw curl tests
+# AUTH_REALM=vsp360        # Keycloak realm (default vsp360)
+# CHUNK_DAYS=5             # split long ranges into &lt;=N-day queries</code></pre>
+  <p>Keep this file <code>600 root:root</code>. <strong>Do not</strong> put JSON here — systemd mangles quotes.</p>
+
+  <h3><code>/etc/mpb-api.creds.json</code> <span class="overline">secrets; read by the Node process</span></h3>
+  <p>Per-host OAuth credentials, keyed by the host the UI sends. Each VSP360 appliance can have its own client id/secret. Hosts not listed fall back to <code>CLIENT_ID</code>/<code>CLIENT_SECRET</code>.</p>
+  <pre><code>{
+  "192.168.53.61":  { "clientId": "mpbbalance", "clientSecret": "..." },
+  "192.168.180.22": { "clientId": "mpbbalance", "clientSecret": "..." }
+}</code></pre>
+  <p>Must be readable by the <code>mpbapi</code> user (<code>chown mpbapi:mpbapi</code>, <code>chmod 600</code>). The <strong>hosts listed here populate the app's VSP360 IP dropdown</strong> (via <code>/api/config</code>). After editing, reload without a full restart:</p>
+  <pre><code>sudo systemctl kill -s HUP mpb-api      # re-reads the creds file</code></pre>
+  <p>The service builds each appliance's URLs from its host:
+    <code>https://&lt;host&gt;/auth/realms/&lt;realm&gt;/protocol/openid-connect/token</code> and
+    <code>https://&lt;host&gt;/clearsightadvanced/dbapi.do?...</code></p>
+
+  <h2 id="usage">Usage</h2>
+  <ol>
+    <li><strong>Data Source</strong> → pick the <strong>VSP360 IP address</strong> (dropdown from the creds file), set the <strong>Storage system</strong> filter (an unanchored regex — e.g. <code>B85</code> matches <code>DC1-B85-B</code>), choose a <strong>time range</strong>, and click <strong>Fetch live metrics</strong>.</li>
+    <li>Watch the live request-flow feed; on success the app jumps to <strong>Overview</strong>.</li>
+    <li>Review the <strong>Balance Plan</strong>; <strong>Export JSON/CSV</strong> as needed.</li>
+    <li>Tune the model in <strong>Settings</strong> (recomputes instantly).</li>
+  </ol>
+  <p>No API access? Use <strong>Load sample dataset</strong> or paste a ClearSight JSON export.</p>
+
+  <h2 id="ops">Operations &amp; troubleshooting</h2>
+  <ul>
+    <li><strong>Logs:</strong> <code>sudo journalctl -u mpb-api -f</code> — per-chunk timing and aggregated LDEV/skip counts.</li>
+    <li><strong>401 unauthorized_client:</strong> wrong secret for that host. Fix <code>/etc/mpb-api.creds.json</code> and <code>systemctl kill -s HUP mpb-api</code>.</li>
+    <li><strong>403 from nginx:</strong> SELinux context or the index filename. Re-run <code>chcon -Rt httpd_sys_content_t /var/www/mpb</code>; confirm <code>/var/www/mpb/index.html</code> exists.</li>
+    <li><strong>502 / HTML "302" in logs:</strong> the appliance bounced an over-long query to its login page. Long ranges are chunked automatically; if a 30-day pull still times out it's wall-clock time — shorten the range or use a coarser sampling interval.</li>
+    <li><strong>"permission denied" reading creds file:</strong> it must be owned/readable by <code>mpbapi</code>, not root-only.</li>
+    <li><strong>Browser shows an old version:</strong> hard-refresh (Ctrl+Shift+R) or append <code>?v=N</code>; nginx serves the file that's actually in <code>/var/www/mpb/</code>.</li>
+  </ul>
+  <p>Redeploy after edits:</p>
+  <pre><code>sudo cp "MPB Load Balancer.dc.html" /var/www/mpb/index.html &amp;&amp; sudo restorecon -v /var/www/mpb/index.html
+sudo cp server/server.js /opt/mpb-api/server.js &amp;&amp; sudo systemctl restart mpb-api</code></pre>
+
+  <h2 id="github">Publishing to GitHub</h2>
+  <pre><code>git clone https://github.com/visubramaniam/LDEV_MPB_BALANCING.git
+cd LDEV_MPB_BALANCING
+mkdir -p frontend
+cp -R /path/to/these/files/. frontend/     # index.html, support.js, assets/, _ds/, server/, README.*
+# IMPORTANT: do not commit real secrets — scrub server/mpb-api.creds.json first
+git add frontend
+git commit -m "Add VSP360 MPB Load Balancer web console"
+git push origin main</code></pre>
+  <blockquote><strong>Security:</strong> <code>mpb-api.env</code> and <code>mpb-api.creds.json</code> in this repo are templates. Replace the secrets with placeholders before committing, and set the real values only in <code>/etc/</code> on the server. Consider adding them to <code>.gitignore</code>.</blockquote>
+  <p>Static-only hosting (GitHub Pages) works for the UI + sample/paste modes, but live API fetching needs the nginx + Node service above.</p>
+
+  <footer>
+    Hitachi Vantara — VSP360 MPB Load Balancer · © Hitachi Vantara LLC. Internal use.
+  </footer>
+
+</div>
+</body>
+</html>

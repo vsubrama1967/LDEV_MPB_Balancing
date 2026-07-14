@@ -1,0 +1,11 @@
+# mpb-api secrets — NEVER commit these
+server/mpb-api.env
+server/mpb-api.creds.json
+mpb-api.env
+mpb-api.creds.json
+
+# OS / editor cruft
+.DS_Store
+Thumbs.db
+*.swp
+node_modules/

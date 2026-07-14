@@ -1,0 +1,81 @@
+/* ============================================================
+   Hitachi Vantara — Color Tokens
+   Source: "Reference – Hitachi Color Palette" (PPT template, slide 46)
+   Two obvious source typos corrected: Yellow 3 -> #967E00, Blue 1 -> #96C5FD
+   ============================================================ */
+:root {
+  /* ---- Brand red (the single most important brand color) ---- */
+  --hv-red-1: #FA000F;   /* primary brand red — "Red 1" */
+  --hv-red-2: #CC0000;   /* deeper red — "Red 2" */
+
+  /* Red 1 tints & shades (for hover/press, surfaces, charts) */
+  --hv-red-tint-20: #FFCBCE;
+  --hv-red-tint-40: #FF979D;
+  --hv-red-tint-60: #FA636C;
+  --hv-red-dark-20: #BB000B;   /* hover */
+  --hv-red-dark-40: #7D0008;   /* press */
+  --hv-red-halftone: #FAE6E6;  /* template-only soft red wash */
+
+  /* ---- Neutrals (the brand is overwhelmingly black/white/gray) ---- */
+  --hv-white:  #FFFFFF;
+  --hv-gray-0: #EAEAEA;  /* template-only light line / hairline */
+  --hv-gray-1: #F4F4F4;  /* lightest surface */
+  --hv-gray-2: #D9D9D9;
+  --hv-gray-3: #B3B3B3;
+  --hv-gray-4: #737373;
+  --hv-gray-5: #4D4D4D;
+  --hv-gray-6: #222222;  /* near-black charcoal */
+  --hv-black:  #0C0C0C;  /* true brand black */
+
+  /* ---- Secondary / data-visualization palette ----
+     Each hue has a light tint (1), a saturated mid (2), and a dark (3).
+     Use red as the lead; these support charts and accents only. */
+  --hv-orange-1: #FDC796;  --hv-orange-2: #FA6900;  --hv-orange-3: #C85400;
+  --hv-yellow-1: #FDEC96;  --hv-yellow-2: #FAD200;  --hv-yellow-3: #967E00;
+  --hv-pink-1:   #FD96D4;  --hv-pink-2:   #FA00A5;  --hv-pink-3:   #96005A;
+  --hv-purple-1: #D096FD;  --hv-purple-2: #9B00FA;  --hv-purple-3: #540096;
+  --hv-blue-1:   #96C5FD;  --hv-blue-2:   #0064FA;  --hv-blue-3:   #004596;
+  --hv-teal-1:   #96F0FD;  --hv-teal-2:   #00DCFA;  --hv-teal-3:   #008496;
+  --hv-green-1:  #96FDCC;  --hv-green-2:  #00FA82;  --hv-green-3:  #00964E;
+
+  /* ============================================================
+     Semantic aliases — prefer these in components
+     ============================================================ */
+  --color-brand:            var(--hv-red-1);
+  --color-brand-strong:     var(--hv-red-2);
+  --color-brand-hover:      var(--hv-red-dark-20);
+  --color-brand-active:     var(--hv-red-dark-40);
+  --color-brand-wash:       var(--hv-red-halftone);
+
+  /* Text */
+  --text-primary:   var(--hv-black);
+  --text-secondary: var(--hv-gray-5);
+  --text-tertiary:  var(--hv-gray-4);
+  --text-disabled:  var(--hv-gray-3);
+  --text-on-dark:   var(--hv-white);
+  --text-on-brand:  var(--hv-white);
+  --text-brand:     var(--hv-red-1);
+
+  /* Surfaces */
+  --surface-page:    var(--hv-white);
+  --surface-subtle:  var(--hv-gray-1);
+  --surface-muted:   var(--hv-gray-0);
+  --surface-card:    var(--hv-white);
+  --surface-inverse: var(--hv-black);
+  --surface-inverse-2: var(--hv-gray-6);
+
+  /* Borders / lines */
+  --border-subtle:  var(--hv-gray-2);
+  --border-default: var(--hv-gray-3);
+  --border-strong:  var(--hv-gray-5);
+  --border-hairline: var(--hv-gray-0);
+
+  /* Status (mapped onto the data palette) */
+  --color-success: var(--hv-green-3);
+  --color-warning: var(--hv-orange-2);
+  --color-danger:  var(--hv-red-1);
+  --color-info:    var(--hv-blue-2);
+
+  /* Focus ring */
+  --focus-ring: var(--hv-red-1);
+}

@@ -1,0 +1,22 @@
+[Unit]
+Description=MPB Load Balancer API token-proxy
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+EnvironmentFile=/etc/mpb-api.env
+ExecStart=/usr/bin/node /opt/mpb-api/server.js
+Restart=on-failure
+RestartSec=3
+# run as an unprivileged service account
+User=mpbapi
+Group=mpbapi
+# hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,46 @@
+/* ============================================================
+   Hitachi Vantara — base element styles & helpers
+   ============================================================ */
+*, *::before, *::after { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: var(--fs-body);
+  line-height: var(--lh-normal);
+  font-weight: var(--fw-regular);
+  color: var(--text-primary);
+  background: var(--surface-page);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Type roles ------------------------------------------------ */
+.hv-display-1 { font-size: var(--fs-display-1); font-weight: var(--fw-extrabold); line-height: var(--lh-tight); letter-spacing: var(--ls-tight); }
+.hv-display-2 { font-size: var(--fs-display-2); font-weight: var(--fw-extrabold); line-height: var(--lh-tight); letter-spacing: var(--ls-tight); }
+.hv-h1 { font-size: var(--fs-h1); font-weight: var(--fw-bold); line-height: var(--lh-snug); letter-spacing: var(--ls-snug); }
+.hv-h2 { font-size: var(--fs-h2); font-weight: var(--fw-bold); line-height: var(--lh-snug); letter-spacing: var(--ls-snug); }
+.hv-h3 { font-size: var(--fs-h3); font-weight: var(--fw-bold); line-height: var(--lh-snug); }
+.hv-h4 { font-size: var(--fs-h4); font-weight: var(--fw-semibold); line-height: var(--lh-snug); }
+.hv-body-lg { font-size: var(--fs-body-lg); line-height: var(--lh-relaxed); }
+.hv-body { font-size: var(--fs-body); line-height: var(--lh-normal); }
+.hv-body-sm { font-size: var(--fs-body-sm); line-height: var(--lh-normal); }
+.hv-caption { font-size: var(--fs-caption); line-height: var(--lh-normal); color: var(--text-secondary); }
+.hv-overline {
+  font-size: var(--fs-overline); font-weight: var(--fw-semibold);
+  letter-spacing: var(--ls-overline); text-transform: uppercase; color: var(--text-tertiary);
+}
+
+/* The signature red rule — a short, heavy red bar used as an
+   accent beneath headings and section labels. */
+.hv-rule {
+  display: block;
+  width: 48px;
+  height: var(--border-w-accent);
+  background: var(--color-brand);
+  border: 0;
+  margin: var(--space-4) 0;
+}
+
+a { color: var(--text-brand); text-decoration: none; }
+a:hover { text-decoration: underline; }

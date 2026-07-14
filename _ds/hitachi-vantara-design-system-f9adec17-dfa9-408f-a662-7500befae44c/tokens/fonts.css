@@ -1,0 +1,8 @@
+/* ============================================================
+   Hitachi Vantara — Web fonts
+   Brand face is "Hitachi Sans" (proprietary, licensed — NOT bundled).
+   Shipping "Hanken Grotesk" as the nearest free substitute, plus
+   "IBM Plex Mono" for data/code. Swap these for licensed Hitachi
+   Sans @font-face rules in production.
+   ============================================================ */
+@import url("https://fonts.googleapis.com/css2?family=Hanken+Grotesk:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400;1,600&family=IBM+Plex+Mono:wght@400;500;600&display=swap");

@@ -1,0 +1,867 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LDEV MPB Balancing — VSP One Block console</title>
+<meta property="og:title" content="LDEV MPB Balancing — VSP One Block console">
+<meta property="og:description" content="A free, open-source console for planning LDEV-to-MP-Blade migrations on Hitachi VSP One. Migration plan, before/after load, analytics, and exports — all in the browser.">
+<meta property="og:url" content="https://mpb.clearthought.net/">
+<meta property="og:type" content="website">
+<meta property="og:image" content="https://mpb.clearthought.net/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="627">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="LDEV MPB Balancing — VSP One Block console">
+<meta name="twitter:description" content="Plan LDEV-to-MP-Blade migrations on Hitachi VSP One — migration plan, before/after load, analytics, exports. Free and open source.">
+<meta name="twitter:image" content="https://mpb.clearthought.net/og-image.png">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="_ds/hitachi-vantara-design-system-f9adec17-dfa9-408f-a662-7500befae44c/tokens/fonts.css">
+<link rel="stylesheet" href="_ds/hitachi-vantara-design-system-f9adec17-dfa9-408f-a662-7500befae44c/tokens/colors.css">
+<link rel="stylesheet" href="_ds/hitachi-vantara-design-system-f9adec17-dfa9-408f-a662-7500befae44c/tokens/typography.css">
+<link rel="stylesheet" href="_ds/hitachi-vantara-design-system-f9adec17-dfa9-408f-a662-7500befae44c/tokens/spacing.css">
+<link rel="stylesheet" href="_ds/hitachi-vantara-design-system-f9adec17-dfa9-408f-a662-7500befae44c/tokens/effects.css">
+<link rel="stylesheet" href="_ds/hitachi-vantara-design-system-f9adec17-dfa9-408f-a662-7500befae44c/tokens/base.css">
+<link rel="stylesheet" href="_ds/hitachi-vantara-design-system-f9adec17-dfa9-408f-a662-7500befae44c/styles.css">
+<style>
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  input:focus,textarea:focus{outline:2px solid var(--hv-black);outline-offset:0;border-color:var(--hv-black)}
+  input[type=range]{accent-color:var(--hv-red-1)}
+  table tbody tr:hover{background:var(--surface-subtle)}
+  ::selection{background:var(--hv-red-tint-20)}
+  .nav-toggle{display:none}
+  .nav-backdrop{display:none}
+  @media (max-width:860px){
+    .app-shell{grid-template-columns:1fr !important}
+    .app-sidebar{position:fixed !important;z-index:60;top:0;left:0;bottom:0;width:240px;transform:translateX(-100%);transition:transform .24s cubic-bezier(.2,0,.1,1)}
+    .app-shell.nav-open .app-sidebar{transform:none;box-shadow:0 0 44px rgba(0,0,0,.45)}
+    .nav-backdrop{display:block;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:55;opacity:0;pointer-events:none;transition:opacity .24s}
+    .app-shell.nav-open .nav-backdrop{opacity:1;pointer-events:auto}
+    .nav-toggle{display:inline-flex !important}
+    .app-main-pad{padding:16px !important}
+    .app-topbar{padding:10px 16px !important}
+    .col-2{grid-template-columns:1fr !important}
+  }
+  @media (max-width:520px){
+    .app-topbar{flex-wrap:wrap;gap:8px !important}
+    .app-main-pad{padding:12px !important}
+  }
+</style>
+</helmet>
+<div class="app-shell {{ navClass }}" style="display:grid;grid-template-columns:248px 1fr;height:100vh;width:100%;font-family:var(--font-sans);color:var(--text-primary);background:var(--surface-subtle)">
+  {{ sidebar }}
+  {{ backdrop }}
+  <div style="display:flex;flex-direction:column;overflow:hidden;height:100vh;min-width:0">
+    {{ demoBanner }}
+    {{ topbar }}
+    <div class="app-main-pad" style="padding:28px 32px;overflow:auto;flex:1">{{ screen }}</div>
+  </div>
+</div>
+{{ toastEl }}
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1320,&quot;height&quot;:860},&quot;writeWeightFactor&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;default&quot;:2,&quot;min&quot;:1,&quot;max&quot;:4,&quot;step&quot;:0.5,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;Model&quot;,&quot;unit&quot;:&quot;\u00d7&quot;},&quot;defaultTolerance&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;default&quot;:2,&quot;min&quot;:0.5,&quot;max&quot;:15,&quot;step&quot;:0.5,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;Model&quot;,&quot;unit&quot;:&quot;%&quot;},&quot;randomThresholdKb&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;default&quot;:64,&quot;min&quot;:16,&quot;max&quot;:256,&quot;step&quot;:4,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;Model&quot;,&quot;unit&quot;:&quot;KB&quot;},&quot;seed&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;default&quot;:7,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;Demo&quot;}}">
+class Component extends DCLogic {
+  state = this.buildInitial();
+
+  S = {
+    card:{background:"#fff",border:"1px solid var(--border-subtle)",borderRadius:6,padding:24},
+    th:{fontSize:11,fontWeight:600,letterSpacing:".06em",textTransform:"uppercase",color:"var(--text-tertiary)",padding:"0 14px 12px",borderBottom:"1px solid var(--border-default)",whiteSpace:"nowrap"},
+    td:{padding:"11px 14px",borderBottom:"1px solid var(--border-subtle)",whiteSpace:"nowrap"},
+    overline:{fontSize:11,fontWeight:600,letterSpacing:".09em",textTransform:"uppercase",color:"var(--text-tertiary)",marginBottom:5,lineHeight:1.35},
+    label:{fontSize:12,fontWeight:600,color:"var(--text-secondary)",marginBottom:6,display:"block"},
+    inp:{width:"100%",padding:"9px 12px",border:"1px solid var(--border-default)",borderRadius:4,fontSize:14,fontFamily:"inherit",boxSizing:"border-box",background:"#fff",color:"var(--hv-black)"}
+  };
+
+  // ---------- numeric helpers ----------
+  nf(n,d){ d=(d==null)?1:d; if(n==null||!isFinite(n)) return "\u2014"; return Number(n).toLocaleString("en-US",{minimumFractionDigits:d,maximumFractionDigits:d}); }
+  pct(n){ if(!isFinite(n)) return "\u2014"; return (n>=0?"+":"")+this.nf(n,1)+"%"; }
+  rng(seed){ let s=seed>>>0; return function(){ s=(s+0x6D2B79F5)>>>0; let t=Math.imul(s^(s>>>15),1|s); t=(t+Math.imul(t^(t>>>7),61|t))^t; return ((t^(t>>>14))>>>0)/4294967296; }; }
+  writeW(){ if(this.state&&this.state.writeWeight!=null) return Number(this.state.writeWeight); return this.props.writeWeightFactor!=null?Number(this.props.writeWeightFactor):2; }
+
+  // ---------- sample data ----------
+  genSample(seed){
+    const r=this.rng(seed||7);
+    const mpbs=["MPU-010","MPU-020"];
+    const arr="840130";
+    let idx=0;
+    const hex=(x)=>x.toString(16).toUpperCase().padStart(2,"0");
+    const nid=()=>{ const a=idx++; return "00:"+hex(Math.floor(a/256))+":"+hex(a%256); };
+    const ldevs=[];
+    const push=(name,mpb,rI,wI,kbps)=>{ const sp=(rI+wI)>0?rI/(rI+wI):0.5; ldevs.push({id:nid(),name:name,mpb:mpb,readIOPS:rI,writeIOPS:wI,readKBps:kbps*sp,writeKBps:kbps*(1-sp)}); };
+    // heavy random whales on MPU-020 (the source of the imbalance)
+    push("JDT-UVM-Vol","MPU-020",3034.5,3035,24290);
+    push("GAD-Workshop","MPU-020",1417,2816,17010);
+    push("OLTP-RedoLog-01","MPU-020",900,1400,11000);
+    const names=["PROD_ESX_DATASTORE","DEV_ESX_DATASTORE","SQL_DATA","SQL_LOG","ORA_DATA","ORA_ARCH","VDI_POOL","BACKUP_TGT","FS_HOME","ANALYTICS_TMP","CITRIX_PVS","EXCHANGE_DB","K8S_PV","REPL_JOURNAL"];
+    const mk=(i)=>names[i%names.length]+String(Math.floor(i/names.length)+1).padStart(2,"0");
+    for(let i=0;i<96;i++){ const rI=r()*40+1, wI=r()*18; const seq=r()<0.25; const ioKB=seq?(64+r()*170):(4+r()*16); push(mk(i),"MPU-020",rI,wI,(rI+wI)*ioKB); }
+    for(let i=0;i<139;i++){ const rI=r()*34+1, wI=r()*14; const seq=r()<0.3; const ioKB=seq?(64+r()*190):(4+r()*18); push(mk(96+i),"MPU-010",rI,wI,(rI+wI)*ioKB); }
+    // Synthesize a per-blade utilization time series (48 points over the last 24h)
+    // so the sample/demo shows the same real-series chart shape as live data.
+    const NB=48, end=Date.now(), t0=end-24*36e5, times=[]; for(let b=0;b<NB;b++) times.push(Math.round(t0+(b+0.5)/NB*(end-t0)));
+    const bladeMean={}; mpbs.forEach(m=>{ let sc=0; ldevs.forEach(l=>{ if(l.mpb===m){ sc+=(l.readIOPS+2*l.writeIOPS); } }); bladeMean[m]=sc; });
+    const maxMean=Math.max.apply(null,mpbs.map(m=>bladeMean[m]))||1;
+    const blades=mpbs.map(m=>{ const rr=this.rng(m.split("").reduce((a,c)=>a+c.charCodeAt(0),0)); const mean=Math.max(bladeMean[m]/maxMean*11,0.4); let v=mean; const util=[]; for(let b=0;b<NB;b++){ v+=(rr()-0.5)*mean*0.5; v+=(mean-v)*0.25; if(v<0)v=0; util.push(mean*0.55+v*0.45); } return {mpb:m,util}; });
+    return {ldevs,mpbs,arr,series:{start:"",end:"",times,blades}};
+  }
+
+  // ---------- scoring ----------
+  derive(ldevs,thr,wW){
+    ldevs.forEach(l=>{
+      const tIOPS=l.readIOPS+l.writeIOPS;
+      const tKBps=l.readKBps+l.writeKBps;
+      const ioKB=tIOPS>0?tKBps/tIOPS:0;
+      let rr; if(ioKB<=4) rr=1; else if(ioKB>=thr) rr=0; else rr=(thr-ioKB)/(thr-4);
+      rr=Math.max(0,Math.min(1,rr));
+      const wIOPS=l.readIOPS+wW*l.writeIOPS;
+      const wMBps=(l.readKBps+wW*l.writeKBps)/1024;
+      l.tIOPS=tIOPS; l.tMBps=tKBps/1024; l.ioKB=ioKB;
+      l.rnd=rr; l.seq=1-rr; l.w1=rr*wIOPS; l.w2=(1-rr)*wMBps; l.score=l.w1+l.w2;
+    });
+    return ldevs;
+  }
+
+  // ---------- balancer (greedy single move + swap fallback) ----------
+  balance(ldevs,mpbs,tol){
+    const assign={}; ldevs.forEach(l=>{ assign[l.id]=l.mpb; });
+    const total=ldevs.reduce((s,l)=>s+l.score,0);
+    const avg=total/mpbs.length, band=avg*tol/100, plan=[];
+    const scoreOf=(m)=>{ let s=0; ldevs.forEach(l=>{ if(assign[l.id]===m) s+=l.score; }); return s; };
+    let iter=0;
+    while(iter++<2000){
+      const sc=mpbs.map(m=>({m,s:scoreOf(m)})); sc.sort((a,b)=>b.s-a.s);
+      const hi=sc[0], lo=sc[sc.length-1];
+      const maxDev=Math.max.apply(null,sc.map(x=>Math.abs(x.s-avg)));
+      if(maxDev<=band) break;
+      const gap=hi.s-lo.s, ideal=gap/2;
+      const hiL=ldevs.filter(l=>assign[l.id]===hi.m);
+      let best=null,bestErr=Infinity;
+      hiL.forEach(l=>{ if(l.score<=0) return; const nh=hi.s-l.score, nl=lo.s+l.score; const nd=Math.max(Math.abs(nh-avg),Math.abs(nl-avg)); if(nd<maxDev-1e-9){ const er=Math.abs(l.score-ideal); if(er<bestErr){bestErr=er;best=l;} } });
+      if(best){ plan.push({action:"move",ldev:best,from:hi.m,to:lo.m}); assign[best.id]=lo.m; continue; }
+      const loL=ldevs.filter(l=>assign[l.id]===lo.m);
+      let sw=null,sErr=Infinity;
+      hiL.forEach(a=>{ loL.forEach(b=>{ const net=a.score-b.score; if(net<=0) return; const nh=hi.s-net, nl=lo.s+net; const nd=Math.max(Math.abs(nh-avg),Math.abs(nl-avg)); if(nd<maxDev-1e-9){ const er=Math.abs(net-ideal); if(er<sErr){sErr=er;sw={a,b};} } }); });
+      if(sw){ plan.push({action:"swap",ldev:sw.a,ldev2:sw.b,from:hi.m,to:lo.m}); assign[sw.a.id]=lo.m; assign[sw.b.id]=hi.m; continue; }
+      break;
+    }
+    return {assign,plan,avg,band};
+  }
+
+  summary(ldevs,mpbs,fn,avg){
+    const tol=this.state.tolerance;
+    return mpbs.map(m=>{ let count=0,iops=0,mbps=0,score=0; ldevs.forEach(l=>{ if(fn(l)===m){count++;iops+=l.tIOPS;mbps+=l.tMBps;score+=l.score;} });
+      const dev=avg>0?((score-avg)/avg*100):0; const util=avg>0?(score/avg)*5.5:0;
+      return {mpb:m,count,iops,mbps,score,dev,util,inBand:Math.abs(dev)<=tol+1e-9}; });
+  }
+
+  // ---------- data ingest ----------
+  buildInitial(){
+    const tol=this.props.defaultTolerance!=null?Number(this.props.defaultTolerance):2.0;
+    const thr=this.props.randomThresholdKb!=null?Number(this.props.randomThresholdKb):64;
+    const wW=this.props.writeWeightFactor!=null?Number(this.props.writeWeightFactor):2;
+    const g=this.genSample(this.props.seed!=null?Number(this.props.seed):7);
+    const ldevs=this.derive(g.ldevs,thr,wW);
+    const result=this.balance(ldevs,g.mpbs,tol);
+    return {active:"dashboard",loaded:true,source:"sample",status:"idle",statusMsg:"",
+      demo:this.isDemoHost(),
+      ldevs,mpbs:g.mpbs,arrayName:g.arr,result,tseries:g.series||null,
+      metricsUrl:"/api/metrics",configUrl:"/api/config",vspIp:"192.168.53.61",vspHosts:["192.168.53.61"],storageName:"DC1-B28",
+      tolerance:tol,thresholdKB:thr,writeWeight:wW,topN:15,ldevSort:"score",ldevDir:-1,showAll:false,timeRange:"24h",autoRefresh:0,autoLeft:0,
+      importText:"",toast:""};
+  }
+
+  // True when served from a public GitHub Pages host — no mpb-api backend there,
+  // so we run as a self-contained demo (sample dataset, live-API panel hidden).
+  // True when this is the public static demo (no mpb-api backend) rather than the
+  // nginx+node deployment. We guess up-front from the hostname to avoid a flash,
+  // then confirm in componentDidMount by probing /api/config (the real test:
+  // demo = backend unreachable). ?demo=1 forces it on; ?live=1 forces it off.
+  isDemoHost(){ try{ if(/[?&]live=1\b/.test(location.search)) return false; if(/[?&]demo=1\b/.test(location.search)) return true; const hn=location.hostname; if(/(^|\.)github\.io$/i.test(hn)) return true; if(/(^|\.)clearthought\.net$/i.test(hn)) return true; return false; }catch(e){ return false; } }
+
+  componentDidMount(){
+    if(/[?&]demo=1\b/.test(location.search)) return;   // explicitly forced demo
+    if(/[?&]live=1\b/.test(location.search)){ this.setState({demo:false}); return; }   // explicitly forced live (skip probe)
+    // Probe the backend. Reachable /api/config => live mode; unreachable => demo.
+    // Definitive, host-agnostic test; can flip the up-front guess either way.
+    const ctl=(typeof AbortController!=="undefined")?new AbortController():null;
+    const to=setTimeout(()=>{ if(ctl) ctl.abort(); },4000);
+    fetch(this.state.configUrl,{headers:{Accept:"application/json"},signal:ctl?ctl.signal:undefined})
+      .then(r=>{ if(!r.ok) throw new Error("no backend (HTTP "+r.status+")"); return r.json(); })
+      .then(c=>{ clearTimeout(to); const patch={demo:false}; if(c){ const hosts=Array.isArray(c.hosts)?c.hosts.filter(Boolean):[]; if(hosts.length) patch.vspHosts=hosts; const def=c.host||(hosts.length?hosts[0]:null); if(def){ patch.vspIp=def; if(hosts.length&&hosts.indexOf(def)<0) patch.vspHosts=[def].concat(hosts); } if(c.chunkDays) patch.chunkDays=c.chunkDays; } this.setState(patch); })
+      .catch(()=>{ clearTimeout(to); this.setState({demo:true}); });   // backend unreachable => demo
+  }
+  vspEndpointUrl(){ const ip=(this.state.vspIp||"").trim(); return ip?("https://"+ip+"/clearsightadvanced/dbapi.do?action=query&dataset=defaultDs&processSync=true"):""; }
+  componentDidUpdate(prev){
+    if(prev.writeWeightFactor!==this.props.writeWeightFactor || prev.randomThresholdKb!==this.props.randomThresholdKb || prev.defaultTolerance!==this.props.defaultTolerance){
+      const patch={};
+      if(prev.randomThresholdKb!==this.props.randomThresholdKb && this.props.randomThresholdKb!=null) patch.thresholdKB=Number(this.props.randomThresholdKb);
+      if(prev.defaultTolerance!==this.props.defaultTolerance && this.props.defaultTolerance!=null) patch.tolerance=Number(this.props.defaultTolerance);
+      this.recompute(patch);
+    }
+    if(prev.seed!==this.props.seed){ const g=this.genSample(Number(this.props.seed)||7); this.applyData(g,"sample"); }
+  }
+
+  recompute(patch){
+    this.setState(prev=>{
+      const next=Object.assign({},prev,patch);
+      const ldevs=this.derive(prev.ldevs,next.thresholdKB,next.writeWeight!=null?Number(next.writeWeight):this.writeW());
+      next.ldevs=ldevs; next.result=this.balance(ldevs,next.mpbs,next.tolerance);
+      return next;
+    });
+  }
+
+  applyData(parsed,source){
+    const ldevs=this.derive(parsed.ldevs,this.state.thresholdKB,this.writeW());
+    const result=this.balance(ldevs,parsed.mpbs,this.state.tolerance);
+    this.setState({ldevs,mpbs:parsed.mpbs,arrayName:parsed.arr,result,source,loaded:true,showAll:false,tseries:parsed.series||null});
+  }
+
+  loadSample(){ this.stopAutoRefresh(); const g=this.genSample(Math.floor(Math.random()*1e6)); this.applyData(g,"sample"); this.setState({active:"dashboard"}); this.toast("Loaded sample dataset"); }
+
+  importJson(){ this.stopAutoRefresh(); try{ const p=this.parseExternal(this.state.importText); this.applyData(p,"import"); const sk=p.skipped?(" \u00b7 "+p.skipped+" skipped (no MPB assignment)"):""; this.setState({active:"dashboard",status:"ok",statusMsg:"Imported "+p.ldevs.length+" LDEVs across "+p.mpbs.length+" MPBs."+sk}); this.toast("Imported "+p.ldevs.length+" LDEVs"+sk); }catch(e){ this.setState({status:"error",statusMsg:e.message}); this.toast("Import failed"); } }
+
+  parseExternal(text){
+    let json; try{ json=JSON.parse(text); }catch(e){ throw new Error("Invalid JSON: "+e.message); }
+    // Compact pre-aggregated shape from the mpb-api service (already averaged).
+    if(json && json.aggregated && Array.isArray(json.ldevs)){
+      const ldevs=json.ldevs.filter(l=>l&&l.mpb).map(l=>({id:String(l.id),name:String(l.name||l.id),mpb:String(l.mpb),readIOPS:+l.readIOPS||0,writeIOPS:+l.writeIOPS||0,readKBps:+l.readKBps||0,writeKBps:+l.writeKBps||0}));
+      const mpbs=[]; ldevs.forEach(l=>{ if(mpbs.indexOf(l.mpb)<0) mpbs.push(l.mpb); }); mpbs.sort();
+      return {ldevs,mpbs,arr:json.storageArray||"VSP360",skipped:json.skipped||0,series:(json.series&&Array.isArray(json.series.blades))?json.series:null};
+    }
+    let recs=null;
+    if(Array.isArray(json)) recs=json;
+    else if(json.result&&Array.isArray(json.result)) recs=json.result;            // ClearSight Advanced dataset
+    else if(json.ldevs&&Array.isArray(json.ldevs)) recs=json.ldevs;
+    else if(json.data&&Array.isArray(json.data)) recs=json.data;
+    else if(json.records&&Array.isArray(json.records)) recs=json.records;
+    if(!recs||!recs.length) throw new Error("Could not find an LDEV array in the JSON (expected ClearSight .result, or an array / .ldevs / .data / .records).");
+    // Average a metric: ClearSight gives [{type:'timeseries', data:[...]}]; tolerate raw arrays / scalars too.
+    const tsAvg=(field)=>{ if(field==null) return 0; if(!Array.isArray(field)) return Number(field)||0; let s=0,n=0; field.forEach(ts=>{ const arr=(ts&&ts.data)||(typeof ts==="number"?[ts]:null); if(Array.isArray(arr)){ arr.forEach(v=>{ if(v!=null&&isFinite(v)){ s+=v; n++; } }); } else if(typeof ts==="number"&&isFinite(ts)){ s+=ts; n++; } }); return n?s/n:0; };
+    let ldevs, arr="Imported array", skipped=0;
+    if(recs[0] && typeof recs[0].signature==="string"){
+      // result[] of raidLdev objects with timeseries metrics + related raidMPB
+      let serial="";
+      const mapped=recs.filter(r=>typeof r.signature==="string" && r.signature.indexOf("raidLdev#")===0).map(r=>{
+        const raw=r.signature.replace(/^raidLdev#/,"");   // 70249-00^FE^E4
+        const parts=raw.split("^");                        // ["70249-00","FE","E4"]
+        const head=parts[0].split("-");                    // serial, LDKC
+        if(head[0]) serial=head[0];
+        const id=[head.length>1?head[1]:"00"].concat(parts.slice(1)).join(":"); // 00:FE:E4
+        const rel=(r.related||[]).filter(x=>x&&typeof x.signature==="string"&&x.signature.indexOf("raidMPB#")===0)[0];
+        let mpb="";
+        if(rel&&rel.signature){ const m=rel.signature.replace(/^raidMPB#/,"").match(/MP[A-Z]*-?\d+/i); mpb=m?m[0]:rel.signature.replace(/^raidMPB#/,"").replace(/^\d+-/,""); }
+        return {id:id,name:id,mpb:mpb,readIOPS:tsAvg(r.readIOPS),writeIOPS:tsAvg(r.writeIOPS),readKBps:tsAvg(r.readTransRate),writeKBps:tsAvg(r.writeTransRate)};
+      });
+      // An LDEV with no resolvable raidMPB can't be balanced (unknown blade) — drop it.
+      ldevs=mapped.filter(l=>l.mpb);
+      skipped=mapped.length-ldevs.length;
+      if(serial) arr=serial;
+    } else {
+      ldevs=recs.map((rec,i)=>{
+        const name=rec.name||rec.ldevNaming||rec.ldevName||("LDEV-"+i);
+        const lid=rec.id||rec.ldevId||rec.ldev||name;
+        const mpb=rec.mpb||rec.mpu||"MPU-010";
+        return {id:String(lid),name:String(name),mpb:String(mpb),
+          readIOPS:tsAvg(rec.readIOPS!=null?rec.readIOPS:rec.readIops),
+          writeIOPS:tsAvg(rec.writeIOPS!=null?rec.writeIOPS:rec.writeIops),
+          readKBps:tsAvg(rec.readTransRate!=null?rec.readTransRate:rec.readKBps),
+          writeKBps:tsAvg(rec.writeTransRate!=null?rec.writeTransRate:rec.writeKBps)};
+      });
+      arr=json.storageArray||json.array||"Imported array";
+    }
+    if(!ldevs.length) throw new Error("No LDEV records parsed.");
+    const mpbs=[]; ldevs.forEach(l=>{ if(mpbs.indexOf(l.mpb)<0) mpbs.push(l.mpb); }); mpbs.sort();
+    return {ldevs,mpbs,arr:arr,skipped:skipped};
+  }
+
+  fmtTime(d){ const p=(n)=>String(n).padStart(2,"0"); return ""+d.getFullYear()+p(d.getMonth()+1)+p(d.getDate())+"_"+p(d.getHours())+p(d.getMinutes())+p(d.getSeconds()); }
+  rangeTimes(sel){ const end=new Date(); const span={"24h":864e5,"7d":7*864e5,"30d":30*864e5}[sel]||864e5; return {start:this.fmtTime(new Date(end.getTime()-span)),end:this.fmtTime(end)}; }
+  clock(){ const d=new Date(); const p=(n)=>String(n).padStart(2,"0"); return p(d.getHours())+":"+p(d.getMinutes())+":"+p(d.getSeconds())+"."+String(d.getMilliseconds()).padStart(3,"0"); }
+  flowReset(){ this.setState({flow:[]}); }
+  flowPush(msg,kind){ this.setState(p=>({flow:(p.flow||[]).concat([{t:this.clock(),msg:msg,kind:kind||"info"}]).slice(-40)})); }
+  connectApi(){
+    const st=this.state;
+    const rt=this.rangeTimes(st.timeRange);
+    const host=(st.vspIp||"").trim();
+    const storage=(st.storageName||"").trim();
+    const qs="start="+rt.start+"&end="+rt.end+"&storage="+encodeURIComponent(storage)+"&host="+encodeURIComponent(host);
+    const rangeLabel={"24h":"last 24 hours","7d":"last 7 days","30d":"last 30 days"}[st.timeRange]||st.timeRange;
+    this.setState({status:"connecting",statusMsg:"Fetching LDEV metrics ("+rt.start+" \u2192 "+rt.end+")\u2026",flow:[]});
+    this.flowPush("\u2192 GET /api/metrics/stream  (browser \u2192 nginx, no credentials)","req");
+    this.flowPush("params: host="+host+"  storage="+storage+"  range="+rangeLabel,"dim");
+    this.flowPush("nginx proxies /api/ \u2192 127.0.0.1:3001 (mpb-api service)","dim");
+    const t0=Date.now();
+    clearInterval(this._flowTick);
+    this._flowTick=setInterval(()=>{ if(this.state.status!=="connecting"){ clearInterval(this._flowTick); return; } this.setState({flowElapsed:((Date.now()-t0)/1000)}); },250);
+    this.setState({flowElapsed:0});
+    // Prefer Server-Sent Events for per-chunk live progress; fall back to a plain
+    // fetch if EventSource is unavailable or the stream errors before any data.
+    if(typeof EventSource!=="undefined"){
+      let got=false;
+      const es=new EventSource(st.metricsUrl+"/stream?"+qs);
+      this._es=es;
+      es.addEventListener("start",ev=>{ const d=JSON.parse(ev.data); this.flowPush("mpb-api: OAuth2 token \u2192 https://"+d.host+"/auth/\u2026 (secret server-side)","info"); this.flowPush("mpb-api: ClearSight query split into "+d.chunks+" chunk(s) of \u2264"+ (this.state.chunkDays||5) +" days","info"); });
+      es.addEventListener("progress",ev=>{ got=true; const d=JSON.parse(ev.data); this.flowPush("\u2713 chunk "+d.index+"/"+d.total+"  "+d.start+"\u2192"+d.end+"  ("+this.nf(d.ms/1000,1)+"s, "+d.ldevsSoFar+" LDEVs so far)","ok"); });
+      es.addEventListener("result",ev=>{ got=true; es.close(); this._es=null; clearInterval(this._flowTick); this.finishApi(JSON.parse(ev.data),t0); });
+      es.addEventListener("error",ev=>{ let msg=""; try{ if(ev.data) msg=JSON.parse(ev.data).error; }catch(e){} es.close(); this._es=null; if(msg){ clearInterval(this._flowTick); this.flowPush("\u2717 "+msg,"err"); this.setState({status:"error",statusMsg:"Could not load metrics: "+msg+". You can also load a JSON export / the sample dataset below."}); } else if(!got){ this.flowPush("stream unavailable \u2014 falling back to single request\u2026","dim"); this.connectApiFallback(qs,t0); } else { clearInterval(this._flowTick); this.flowPush("\u2717 stream interrupted","err"); this.setState({status:"error",statusMsg:"Metrics stream interrupted before completing. Try again or use a JSON export / the sample dataset below."}); } });
+    } else {
+      this.flowPush("mpb-api: OAuth2 token + chunked ClearSight query (secret server-side)","info");
+      this.connectApiFallback(qs,t0);
+    }
+  }
+  connectApiFallback(qs,t0){
+    const st=this.state;
+    fetch(st.metricsUrl+"?"+qs,{headers:{Accept:"application/json"}})
+      .then(r=>r.text().then(t=>({ok:r.ok,status:r.status,text:t})))
+      .then(o=>{ clearInterval(this._flowTick); let j=null; try{ j=JSON.parse(o.text); }catch(e){} if(!j) throw new Error("HTTP "+o.status+" \u2014 non-JSON response: "+(o.text||"").slice(0,140)); if(j.error) throw new Error(j.error); if(!o.ok) throw new Error("HTTP "+o.status); this.finishApi(j,t0); })
+      .catch(e=>{ clearInterval(this._flowTick); this.flowPush("\u2717 "+(e.message||"failed"),"err"); this.setState({status:"error",statusMsg:"Could not load metrics: "+(e.message||"failed")+". You can also load a JSON export / the sample dataset below."}); });
+  }
+  finishApi(j,t0){
+    const secs=((Date.now()-t0)/1000).toFixed(1);
+    this.flowPush("\u2190 all chunks aggregated in "+secs+"s","ok");
+    const p=this.parseExternal(JSON.stringify(j)); const sk=p.skipped?(" \u00b7 "+p.skipped+" skipped (no MPB assignment)"):"";
+    this.flowPush("parsed "+p.ldevs.length+" LDEVs across "+p.mpbs.length+" MPBs ("+p.mpbs.join(", ")+") on array "+p.arr,"ok");
+    if(p.skipped) this.flowPush(p.skipped+" LDEV(s) skipped \u2014 no resolvable MP Blade","dim");
+    this.flowPush("scoring load + generating migration plan\u2026","info");
+    this.applyData(p,"api");
+    this.flowPush("\u2713 done \u2014 "+this.state.result.plan.length+" move(s) to reach \u00b1"+this.nf(this.state.tolerance,1)+"%","ok");
+    this.setState({status:"ok",statusMsg:"Loaded "+p.ldevs.length+" LDEVs across "+p.mpbs.length+" MPBs from the API."+sk,active:"dashboard"}); this.toast("Connected");
+    this.scheduleAutoRefresh();
+  }
+
+  // Auto-refresh: re-fetch live metrics every autoRefresh seconds. Only while the
+  // active data source is the API (never in demo / sample / import), and it re-arms
+  // after each completed fetch so ticks never overlap an in-flight request.
+  scheduleAutoRefresh(){
+    clearTimeout(this._auto); clearInterval(this._autoCd);
+    const secs=Number(this.state.autoRefresh)||0;
+    if(secs<=0 || this.state.demo || this.state.source!=="api"){ this.setState({autoLeft:0}); return; }
+    let left=secs; this.setState({autoLeft:left});
+    this._autoCd=setInterval(()=>{ left-=1; if(left<0)left=0; this.setState({autoLeft:left}); },1000);
+    this._auto=setTimeout(()=>{ clearInterval(this._autoCd); if(this.state.status==="connecting"){ this.scheduleAutoRefresh(); return; } if((Number(this.state.autoRefresh)||0)>0 && this.state.source==="api"){ this.connectApi(); } },secs*1000);
+  }
+  setAutoRefresh(secs){ this.setState({autoRefresh:Number(secs)||0},()=>this.scheduleAutoRefresh()); }
+  autoLeftLabel(){ const s=Math.max(0,Math.round(this.state.autoLeft||0)); if(s>=60){ const m=Math.floor(s/60), r=s%60; return m+"m"+(r?(" "+r+"s"):""); } return s+"s"; }
+  stopAutoRefresh(){ clearTimeout(this._auto); clearInterval(this._autoCd); this.setState({autoLeft:0}); }
+  componentWillUnmount(){ clearTimeout(this._auto); clearInterval(this._autoCd); clearInterval(this._flowTick); clearTimeout(this._t); if(this._es){ this._es.close(); this._es=null; } }
+
+  setSort(key){ this.setState(p=>({ldevSort:key,ldevDir:p.ldevSort===key?-p.ldevDir:-1})); }
+  toast(m){ this.setState({toast:m}); clearTimeout(this._t); this._t=setTimeout(()=>this.setState({toast:""}),2200); }
+  download(name,text,type){ const b=new Blob([text],{type:type||"text/plain"}); const u=URL.createObjectURL(b); const a=document.createElement("a"); a.href=u; a.download=name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(u),1000); }
+
+  exportJson(){
+    const st=this.state, avg=st.result.avg;
+    const before=this.summary(st.ldevs,st.mpbs,l=>l.mpb,avg);
+    const after=this.summary(st.ldevs,st.mpbs,l=>st.result.assign[l.id],avg);
+    const out={storageArray:st.arrayName,generatedAt:new Date().toISOString(),
+      params:{tolerance:st.tolerance,randomThresholdKb:st.thresholdKB,writeWeightFactor:this.writeW()},
+      averageLoad:avg,
+      before:before.map(b=>({mpb:b.mpb,ldevs:b.count,totIOPS:b.iops,totMBps:b.mbps,loadScore:b.score,devPct:b.dev,inBand:b.inBand})),
+      after:after.map(b=>({mpb:b.mpb,ldevs:b.count,totIOPS:b.iops,totMBps:b.mbps,loadScore:b.score,devPct:b.dev,inBand:b.inBand})),
+      migrationPlan:st.result.plan.map((p,i)=>({n:i+1,action:p.action,ldevId:p.ldev.id,name:p.action==="swap"?(p.ldev.name+" <-> "+p.ldev2.name):p.ldev.name,iops:p.ldev.tIOPS,mbps:p.ldev.tMBps,from:p.from,to:p.to})),
+      ldevs:st.ldevs.map(l=>({id:l.id,name:l.name,fromMpb:l.mpb,toMpb:st.result.assign[l.id],readIOPS:l.readIOPS,writeIOPS:l.writeIOPS,totalMBps:l.tMBps,randomRatio:l.rnd,w1:l.w1,w2:l.w2,score:l.score}))};
+    this.download("mpb-balance-result.json",JSON.stringify(out,null,2),"application/json"); this.toast("Exported JSON");
+  }
+  exportCsv(){
+    const st=this.state;
+    const lines=[["#","Action","LDEV ID","Name","IOPS","MB/s","From","To"]];
+    st.result.plan.forEach((p,i)=>{ lines.push([i+1,p.action,p.ldev.id,p.action==="swap"?(p.ldev.name+" <-> "+p.ldev2.name):p.ldev.name,this.nf(p.ldev.tIOPS,1),this.nf(p.ldev.tMBps,2),p.from,p.to]); });
+    const csv=lines.map(r=>r.map(c=>'"'+String(c).replace(/"/g,'""')+'"').join(",")).join("\n");
+    this.download("mpb-migration-plan.csv",csv,"text/csv"); this.toast("Exported CSV");
+  }
+
+  // ---------- shared UI ----------
+  btn(label,onClick,variant,icon){
+    const h=React.createElement;
+    const base={display:"inline-flex",alignItems:"center",gap:8,padding:"9px 15px",borderRadius:4,fontSize:14,fontWeight:600,cursor:"pointer",fontFamily:"inherit",lineHeight:1.1,whiteSpace:"nowrap"};
+    const v={primary:{background:"var(--hv-red-1)",color:"#fff",border:"1px solid var(--hv-red-1)"},secondary:{background:"#fff",color:"var(--hv-black)",border:"1px solid var(--border-default)"},ghost:{background:"transparent",color:"var(--hv-black)",border:"1px solid transparent"}}[variant]||{background:"#fff",color:"var(--hv-black)",border:"1px solid var(--border-default)"};
+    const im=icon?h("img",{src:"assets/icons/"+icon+".svg",width:15,height:15,style:{filter:variant==="primary"?"brightness(0) invert(1)":"none"}}):null;
+    return h("button",{onClick,style:Object.assign({},base,v)},im,label);
+  }
+  table(cols,rows,sortable){
+    const h=React.createElement, st=this.state;
+    return h("div",{style:{overflowX:"auto"}},h("table",{style:{width:"100%",borderCollapse:"collapse",fontSize:14}},
+      h("thead",null,h("tr",null,cols.map(c=>h("th",{key:c.key,onClick:(sortable&&c.sort)?()=>this.setSort(c.key):undefined,style:Object.assign({},this.S.th,{textAlign:c.align||"left",cursor:(sortable&&c.sort)?"pointer":"default"})},c.label+((sortable&&c.sort&&st.ldevSort===c.key)?(st.ldevDir<0?"  \u2193":"  \u2191"):""))))),
+      h("tbody",null,rows.map((r,i)=>h("tr",{key:i},cols.map(c=>h("td",{key:c.key,style:Object.assign({},this.S.td,{textAlign:c.align||"left"})},c.render?c.render(r,i):r[c.key])))))));
+  }
+  legendDot(c,t){ const h=React.createElement; return h("div",{style:{display:"flex",alignItems:"center",gap:6}},h("span",{style:{width:10,height:10,borderRadius:2,background:c}}),t); }
+  kpi(value,label,icon,tone){
+    const h=React.createElement;
+    return h("div",{style:{background:"#fff",border:"1px solid var(--border-subtle)",borderRadius:6,padding:"18px 20px",flex:"1 1 0",minWidth:158}},
+      h("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center"}},
+        h("div",{style:{width:36,height:36,borderRadius:4,background:"var(--surface-subtle)",display:"flex",alignItems:"center",justifyContent:"center"}},h("img",{src:"assets/icons/"+icon+".svg",width:20,height:20})),
+        tone?h("span",{style:{fontSize:11,fontWeight:700,letterSpacing:".04em",color:tone.c,textTransform:"uppercase"}},tone.t):null),
+      h("div",{style:{fontSize:28,fontWeight:800,letterSpacing:"-.02em",marginTop:14,lineHeight:1,color:"var(--hv-black)"}},value),
+      h("div",{style:{fontSize:13,color:"var(--text-secondary)",marginTop:6}},label));
+  }
+  chart(series,avg,band,max){
+    const h=React.createElement;
+    const bandL=Math.max(0,(avg-band)/max*100), bandW=(2*band)/max*100;
+    return h("div",null,
+      series.map(s=>h("div",{key:s.mpb,style:{display:"flex",alignItems:"center",gap:12,margin:"12px 0"}},
+        h("div",{style:{width:74,fontSize:13,fontWeight:600,fontFamily:"var(--font-mono)"}},s.mpb),
+        h("div",{style:{flex:1,position:"relative",height:24,background:"var(--hv-gray-1)",borderRadius:3,overflow:"hidden"}},
+          h("div",{style:{position:"absolute",top:0,bottom:0,left:bandL+"%",width:bandW+"%",background:"rgba(0,150,78,.13)"}}),
+          h("div",{style:{position:"absolute",top:-2,bottom:-2,left:(avg/max*100)+"%",width:2,background:"var(--hv-gray-5)",opacity:.55}}),
+          h("div",{style:{position:"absolute",top:0,bottom:0,left:0,width:(s.score/max*100)+"%",background:s.inBand?"var(--hv-green-3)":"var(--hv-red-1)",borderRadius:3,transition:"width .45s cubic-bezier(.2,0,.1,1)"}})),
+        h("div",{style:{width:92,textAlign:"right",fontSize:13,fontFamily:"var(--font-mono)"}},this.nf(s.score,0)),
+        h("div",{style:{width:60,textAlign:"right",fontSize:12,fontWeight:700,color:s.inBand?"var(--hv-green-3)":"var(--hv-red-1)"}},this.pct(s.dev)))),
+      h("div",{style:{display:"flex",gap:18,marginTop:14,fontSize:12,color:"var(--text-tertiary)",flexWrap:"wrap"}},
+        this.legendDot("var(--hv-gray-5)","Average"),
+        this.legendDot("rgba(0,150,78,.4)","\u00b1"+this.nf(this.state.tolerance,1)+"% band"),
+        this.legendDot("var(--hv-green-3)","Within tolerance"),
+        this.legendDot("var(--hv-red-1)","Out of tolerance")));
+  }
+  modelNote(){
+    const h=React.createElement, wW=this.writeW();
+    return h("div",{className:"col-2",style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:20}},
+      h("div",{style:{fontFamily:"var(--font-mono)",fontSize:13,background:"var(--surface-subtle)",border:"1px solid var(--border-subtle)",borderRadius:4,padding:"16px 18px",lineHeight:1.8,color:"var(--hv-gray-6)"}},
+        h("div",null,"WeightedIOPS = ReadIOPS + "+wW+"\u00d7 WriteIOPS"),
+        h("div",null,"WeightedMBps = ReadMBps + "+wW+"\u00d7 WriteMBps"),
+        h("div",{style:{marginTop:10,color:"var(--hv-red-2)",fontWeight:600}},"LoadScore = RndR \u00d7 WeightedIOPS + SeqR \u00d7 WeightedMBps")),
+      h("div",{style:{fontSize:14,color:"var(--text-secondary)",lineHeight:1.6}},"Writes cost "+wW+"\u00d7 the MPB cycles of reads (cache management, destaging, RAID parity). Random I/O is IOPS-bound; sequential I/O is throughput-bound. RandomRatio is derived from average I/O size \u2014 \u2264 4 KB is fully random, \u2265 "+this.state.thresholdKB+" KB is fully sequential, linear in between."));
+  }
+
+  // ---------- chrome ----------
+  renderSidebar(){
+    const h=React.createElement;
+    const NAV=[["dashboard","Overview","dashboard"],["plan","Balance Plan","exchange"],["analytics","Analytics","analytics"],["ldevs","LDEVs","database"],["source","Data Source","cloud-sync"],["settings","Settings","gear"]];
+    const ic=(n)=>h("img",{src:"assets/icons/"+n+".svg",width:18,height:18,style:{filter:"brightness(0) invert(1)",opacity:.92}});
+    return h("aside",{className:"app-sidebar",style:{background:"var(--hv-black)",color:"#fff",display:"flex",flexDirection:"column"}},
+      h("div",{style:{padding:"22px 22px 18px",borderBottom:"1px solid rgba(255,255,255,.1)"}},
+        h("img",{src:"assets/logos/hitachi-wordmark-white.svg",style:{width:128,display:"block"}}),
+        h("div",{style:{fontSize:10,letterSpacing:".14em",textTransform:"uppercase",opacity:.55,marginTop:6}},"MPB Load Balancer")),
+      h("nav",{style:{padding:"14px 12px",display:"flex",flexDirection:"column",gap:2,flex:1}},
+        NAV.map(n=>{ const act=this.state.active===n[0];
+          return h("button",{key:n[0],onClick:()=>this.setState({active:n[0],navOpen:false}),style:{display:"flex",alignItems:"center",gap:12,padding:"10px 12px",borderRadius:4,color:act?"#fff":"rgba(255,255,255,.78)",fontSize:14,fontWeight:act?600:500,cursor:"pointer",border:"none",background:act?"rgba(250,0,15,.16)":"transparent",textAlign:"left",width:"100%",position:"relative",fontFamily:"inherit"}},
+            act?h("span",{style:{position:"absolute",left:0,top:7,bottom:7,width:3,background:"var(--hv-red-1)",borderRadius:2}}):null,
+            ic(n[2]),n[1]); })),
+      h("div",{style:{padding:"14px 16px",borderTop:"1px solid rgba(255,255,255,.1)",display:"flex",alignItems:"center",gap:10,fontSize:13}},
+        h("div",{style:{width:32,height:32,borderRadius:"50%",background:"var(--hv-gray-5)",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:700,fontSize:13}},"SA"),
+        h("div",null,h("div",{style:{fontWeight:600}},"Storage Admin"),h("div",{style:{opacity:.6,fontSize:12}},"VSP360"))));
+  }
+  statusChip(){
+    const h=React.createElement, vm=this._vm; if(!vm) return null; const bal=vm.afterBal;
+    return h("div",{style:{display:"inline-flex",alignItems:"center",gap:8,padding:"6px 12px",borderRadius:4,fontSize:13,fontWeight:600,background:bal?"rgba(0,150,78,.12)":"var(--hv-red-halftone)",color:bal?"var(--hv-green-3)":"var(--hv-red-2)"}},
+      h("span",{style:{width:8,height:8,borderRadius:"50%",background:bal?"var(--hv-green-3)":"var(--hv-red-1)"}}),
+      bal?("Plan balances to \u00b1"+this.nf(vm.afterDevMax,1)+"%"):("Imbalanced \u00b1"+this.nf(vm.beforeDevMax,1)+"%"));
+  }
+  renderTopbar(){
+    const h=React.createElement, st=this.state;
+    const titles={dashboard:"Overview",plan:"Balance Plan",analytics:"Analytics",ldevs:"LDEV Inventory",source:"Data Source",settings:"Settings"};
+    const sub={sample:"Sample dataset",api:"VSP One Block API",import:"Imported JSON"}[st.source]||"";
+    return h("div",{className:"app-topbar",style:{minHeight:64,background:"#fff",borderBottom:"1px solid var(--border-subtle)",display:"flex",alignItems:"center",gap:20,padding:"8px 32px",flex:"none"}},
+      h("button",{className:"nav-toggle","aria-label":"Menu",onClick:()=>this.setState({navOpen:!st.navOpen}),style:{alignItems:"center",justifyContent:"center",width:38,height:38,marginLeft:-6,marginRight:-6,border:"1px solid var(--border-default)",borderRadius:4,background:"#fff",cursor:"pointer",flex:"none",padding:0}},
+        h("span",{style:{display:"block",width:16,height:0,borderTop:"2px solid var(--hv-black)",boxShadow:"0 5px 0 var(--hv-black),0 -5px 0 var(--hv-black)"}})),
+      h("div",{style:{flex:"none",minWidth:0}},h("h1",{style:{fontSize:20,fontWeight:700,margin:0,whiteSpace:"nowrap"}},titles[st.active]||"Console"),
+        h("div",{style:{fontSize:12,color:"var(--text-tertiary)",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}},st.arrayName+" \u00b7 "+sub)),
+      h("div",{style:{marginLeft:"auto",display:"flex",alignItems:"center",gap:10,flexWrap:"wrap",justifyContent:"flex-end"}},this.statusChip(),this.btn("Export JSON",()=>this.exportJson(),"secondary","download"),this.btn("Export CSV",()=>this.exportCsv(),"secondary","download")));
+  }
+  renderToast(){ const h=React.createElement; if(!this.state.toast) return null; return h("div",{style:{position:"fixed",bottom:24,left:"50%",transform:"translateX(-50%)",background:"var(--hv-black)",color:"#fff",padding:"12px 20px",borderRadius:6,fontSize:14,fontWeight:600,boxShadow:"0 8px 24px rgba(0,0,0,.25)",zIndex:50}},this.state.toast); }
+
+  // ---------- screens ----------
+  card(title,overline,body,right){
+    const h=React.createElement;
+    return h("div",{style:this.S.card},h("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:16}},h("div",null,overline?h("div",{style:this.S.overline},overline):null,h("div",{style:{fontSize:18,fontWeight:700}},title)),right||null),body);
+  }
+  loadDist(){
+    const h=React.createElement, st=this.state;
+    const scores=st.ldevs.map(l=>l.score).filter(s=>s>0);
+    const total=scores.reduce((a,b)=>a+b,0);
+    if(!scores.length||total<=0) return h("div",{style:{color:"var(--text-tertiary)",padding:"8px 2px"}},"No load recorded in this window.");
+    const max=Math.max.apply(null,scores), min=Math.min.apply(null,scores);
+    // LDEV load is heavily skewed (a few whales), so bin on a LOG scale to reveal
+    // the real shape instead of collapsing everything into the first linear bin.
+    const NB=12, lo=Math.log10(Math.max(min,0.1)), hi=Math.log10(Math.max(max,min*10)), span=(hi-lo)||1;
+    const bins=new Array(NB).fill(0);
+    scores.forEach(s=>{ let i=Math.floor((Math.log10(s)-lo)/span*NB); if(i>=NB)i=NB-1; if(i<0)i=0; bins[i]++; });
+    const edge=(i)=>Math.pow(10,lo+span*i/NB);
+    const maxCount=Math.max.apply(null,bins);
+    // Pareto: how many of the busiest LDEVs hold 80% of total load
+    const desc=scores.slice().sort((a,b)=>b-a); let cum=0,p80=0; for(let i=0;i<desc.length;i++){ cum+=desc[i]; if(cum>=0.8*total){ p80=i+1; break; } }
+    const top5=desc.slice(0,5).reduce((a,b)=>a+b,0), top5Pct=total>0?top5/total*100:0;
+    const tick=(v)=>v>=1000?this.nf(v/1000,v>=10000?0:1)+"k":(v>=10?this.nf(v,0):this.nf(v,1));
+    const bars=h("div",{style:{display:"flex",alignItems:"flex-end",gap:4,height:170,marginTop:6}},
+      bins.map((c,i)=>{ const frac=maxCount?c/maxCount:0; const t=i/(NB-1);
+        return h("div",{key:i,style:{flex:1,display:"flex",flexDirection:"column",justifyContent:"flex-end",alignItems:"center",height:"100%"}},
+          c?h("div",{style:{fontSize:10,fontWeight:700,color:"var(--text-tertiary)",marginBottom:3}},c):null,
+          h("div",{style:{width:"100%",height:(frac*140)+"px",minHeight:c?2:0,background:"var(--hv-red-1)",opacity:0.32+0.68*t,borderRadius:"2px 2px 0 0",transition:"height .4s cubic-bezier(.2,0,.1,1)"}})); }));
+    const rangeRow=h("div",{style:{display:"flex",gap:4,marginTop:6}},
+      bins.map((c,i)=>h("div",{key:i,style:{flex:1,textAlign:"center",fontSize:9.5,lineHeight:1.25,color:"var(--text-tertiary)",fontFamily:"var(--font-mono)"}},tick(edge(i))+"\u2013",h("br"),tick(edge(i+1)))));
+    const axis=h("div",{style:{marginTop:8,fontSize:11,color:"var(--text-tertiary)",textAlign:"center"}},"load score band (log scale) \u2192");
+    const insight=h("div",{style:{display:"flex",gap:24,marginTop:16,flexWrap:"wrap"}},
+      h("div",null,h("div",{style:{fontSize:22,fontWeight:800,color:"var(--hv-red-1)",lineHeight:1}},p80+" of "+scores.length),h("div",{style:{fontSize:12,color:"var(--text-secondary)",marginTop:3}},"busiest LDEVs hold 80% of total load")),
+      h("div",null,h("div",{style:{fontSize:22,fontWeight:800,lineHeight:1}},this.nf(top5Pct,0)+"%"),h("div",{style:{fontSize:12,color:"var(--text-secondary)",marginTop:3}},"of load is on the top 5 LDEVs")));
+    return h("div",null,bars,rangeRow,axis,insight);
+  }
+  rndSeqSplit(){
+    const h=React.createElement, st=this.state;
+    const RND="var(--hv-red-1)", SEQ="var(--hv-teal-3)";
+    const per=st.mpbs.map(m=>{ let w1=0,w2=0; st.ldevs.forEach(l=>{ if(l.mpb===m){ w1+=l.w1; w2+=l.w2; } }); return {mpb:m,w1,w2,tot:w1+w2}; });
+    const W1=per.reduce((a,b)=>a+b.w1,0), W2=per.reduce((a,b)=>a+b.w2,0), T=W1+W2;
+    if(T<=0) return h("div",{style:{color:"var(--text-tertiary)",padding:"8px 2px"}},"No load recorded in this window.");
+    const maxTot=Math.max.apply(null,per.map(p=>p.tot))||1;
+    const seg=(w,color,tot)=>{ const pctW=tot>0?(w/tot*100):0; return pctW>0?h("div",{style:{width:pctW+"%",background:color,height:"100%"}}):null; };
+    // overall split bar
+    const overall=h("div",{style:{marginBottom:22}},
+      h("div",{style:{display:"flex",height:30,borderRadius:4,overflow:"hidden",border:"1px solid var(--border-subtle)"}},
+        h("div",{style:{width:(W1/T*100)+"%",background:RND,color:"#fff",fontSize:12,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center",whiteSpace:"nowrap"}},W1/T>=0.12?("Random "+this.nf(W1/T*100,0)+"%"):""),
+        h("div",{style:{width:(W2/T*100)+"%",background:SEQ,color:"#fff",fontSize:12,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center",whiteSpace:"nowrap"}},W2/T>=0.12?("Sequential "+this.nf(W2/T*100,0)+"%"):"")),
+      h("div",{style:{fontSize:12,color:"var(--text-tertiary)",marginTop:6}},"Array-wide load composition \u2014 random (IOPS-bound) vs sequential (throughput-bound)"));
+    // per-MPB stacked rows
+    const rows=per.map(p=>h("div",{key:p.mpb,style:{display:"flex",alignItems:"center",gap:12,margin:"10px 0"}},
+      h("div",{style:{width:74,fontSize:13,fontWeight:600,fontFamily:"var(--font-mono)"}},p.mpb),
+      h("div",{style:{flex:1,height:22,background:"var(--hv-gray-1)",borderRadius:3,overflow:"hidden"}},
+        h("div",{style:{display:"flex",height:"100%",width:(p.tot/maxTot*100)+"%",transition:"width .4s cubic-bezier(.2,0,.1,1)"}},seg(p.w1,RND,p.tot),seg(p.w2,SEQ,p.tot))),
+      h("div",{style:{width:64,textAlign:"right",fontSize:12,fontFamily:"var(--font-mono)",color:"var(--hv-red-2)"}},this.nf(p.tot>0?p.w1/p.tot*100:0,0)+"% R")));
+    const legend=h("div",{style:{display:"flex",gap:18,marginTop:14,fontSize:12,color:"var(--text-tertiary)",flexWrap:"wrap"}},
+      this.legendDot(RND,"Random \u00b7 weighted IOPS"),
+      this.legendDot(SEQ,"Sequential \u00b7 weighted MB/s"),
+      h("span",{style:{marginLeft:"auto"}},"bar length = blade load; % R = random share"));
+    return h("div",null,overall,rows,legend);
+  }
+  iopsThroughput(){
+    const h=React.createElement, st=this.state;
+    const pts=st.ldevs.filter(l=>l.tIOPS>0||l.tMBps>0);
+    if(!pts.length) return h("div",{style:{color:"var(--text-tertiary)",padding:"8px 2px"}},"No I/O recorded in this window.");
+    const PAL=["var(--hv-red-1)","var(--hv-blue-2)","var(--hv-teal-3)","var(--hv-orange-2)","var(--hv-purple-2)","var(--hv-green-3)"];
+    const colorOf=(m)=>PAL[Math.max(0,st.mpbs.indexOf(m))%PAL.length];
+    const W=1700,H=300,pl=54,pr=14,pt=14,pb=42;
+    const xs=pts.map(p=>p.tIOPS).filter(v=>v>0), ys=pts.map(p=>p.tMBps).filter(v=>v>0);
+    const lg=(v)=>Math.log10(v<=0?0.1:v);
+    const xmin=Math.floor(lg(Math.min.apply(null,xs.length?xs:[1]))), xmax=Math.ceil(lg(Math.max.apply(null,xs.length?xs:[10])));
+    const ymin=Math.floor(lg(Math.min.apply(null,ys.length?ys:[0.1]))), ymax=Math.ceil(lg(Math.max.apply(null,ys.length?ys:[1])));
+    const xSpan=(xmax-xmin)||1, ySpan=(ymax-ymin)||1;
+    const px=(v)=>pl+((lg(v)-xmin)/xSpan)*(W-pl-pr);
+    const py=(v)=>H-pb-((lg(v)-ymin)/ySpan)*(H-pt-pb);
+    const fmt=(v)=>v>=1000?this.nf(v/1000,v>=10000?0:1)+"k":(v>=1?this.nf(v,0):this.nf(v,1));
+    const els=[];
+    // gridlines + axis ticks (powers of ten)
+    for(let e=xmin;e<=xmax;e++){ const x=px(Math.pow(10,e)); els.push(h("line",{key:"gx"+e,x1:x,y1:pt,x2:x,y2:H-pb,stroke:"var(--border-subtle)",strokeWidth:1})); els.push(h("text",{key:"tx"+e,x:x,y:H-pb+16,textAnchor:"middle",fontSize:11,fill:"var(--text-tertiary)",fontFamily:"var(--font-mono)"},fmt(Math.pow(10,e)))); }
+    for(let e=ymin;e<=ymax;e++){ const y=py(Math.pow(10,e)); els.push(h("line",{key:"gy"+e,x1:pl,y1:y,x2:W-pr,y2:y,stroke:"var(--border-subtle)",strokeWidth:1})); els.push(h("text",{key:"ty"+e,x:pl-8,y:y+4,textAnchor:"end",fontSize:11,fill:"var(--text-tertiary)",fontFamily:"var(--font-mono)"},fmt(Math.pow(10,e)))); }
+    // dots
+    pts.forEach((p,i)=>{ els.push(h("circle",{key:"c"+i,cx:px(p.tIOPS||Math.pow(10,xmin)),cy:py(p.tMBps||Math.pow(10,ymin)),r:4,fill:colorOf(p.mpb),fillOpacity:.62,stroke:colorOf(p.mpb),strokeWidth:.5},h("title",null,p.id+"  "+this.nf(p.tIOPS,0)+" IOPS \u00b7 "+this.nf(p.tMBps,1)+" MB/s \u00b7 "+p.mpb))); });
+    // axis titles
+    els.push(h("text",{key:"axx",x:(pl+W-pr)/2,y:H-4,textAnchor:"middle",fontSize:12,fontWeight:600,fill:"var(--text-secondary)"},"Total IOPS (log) \u2192"));
+    els.push(h("text",{key:"axy",x:14,y:(pt+H-pb)/2,textAnchor:"middle",fontSize:12,fontWeight:600,fill:"var(--text-secondary)",transform:"rotate(-90 14 "+((pt+H-pb)/2)+")"},"Throughput MB/s (log) \u2192"));
+    const svg=h("svg",{viewBox:"0 0 "+W+" "+H,style:{width:"100%",aspectRatio:"1700 / 300",height:"auto",maxWidth:1900,display:"block"},"data-om-raster":"true"},
+      h("rect",{x:pl,y:pt,width:W-pl-pr,height:H-pt-pb,fill:"var(--surface-subtle)",stroke:"var(--border-subtle)"}),els);
+    const legend=h("div",{style:{display:"flex",gap:16,marginTop:12,flexWrap:"wrap",fontSize:12,color:"var(--text-tertiary)"}},
+      st.mpbs.map(m=>this.legendDot(colorOf(m),m)),
+      h("span",{style:{marginLeft:"auto"}},"each dot = one LDEV \u00b7 lower-right = IOPS-bound, upper-left = throughput-bound"));
+    return h("div",null,svg,legend);
+  }
+  bladeUtilOverTime(){
+    const h=React.createElement, st=this.state, vm=this._vm;
+    const PAL=["var(--hv-red-1)","var(--hv-blue-2)","var(--hv-teal-3)","var(--hv-orange-2)","var(--hv-purple-2)","var(--hv-green-3)"];
+    const colorOf=(m)=>PAL[Math.max(0,st.mpbs.indexOf(m))%PAL.length];
+    const ts=st.tseries;
+    const real=!!(ts&&ts.blades&&ts.blades.length&&ts.times&&ts.times.length);
+    let series, N, times, modeled=false;
+    if(real){
+      N=ts.times.length; times=ts.times;
+      series=ts.blades.map(b=>{ const mean=this.avgOf(b.util); return {mpb:b.mpb,pts:b.util,mean:mean}; });
+    } else {
+      // fallback: model a profile around each blade's measured average utilization
+      modeled=true;
+      const base=(vm&&vm.before)?vm.before:[];
+      if(!base.length) return h("div",{style:{color:"var(--text-tertiary)",padding:"8px 2px"}},"No load recorded in this window.");
+      N=24; const seedRng=(str)=>{ let s=0; for(let i=0;i<str.length;i++) s=(s*31+str.charCodeAt(i))>>>0; return ()=>{ s=(s*1664525+1013904223)>>>0; return s/4294967296; }; };
+      series=base.map(b=>{ const r=seedRng(b.mpb); const mean=Math.max(b.util,0.4); let v=mean; const pts=[]; for(let i=0;i<N;i++){ v+=(r()-0.5)*mean*0.5; v+=(mean-v)*0.25; if(v<0)v=0; pts.push(mean*0.55+v*0.45); } return {mpb:b.mpb,pts,mean:b.util}; });
+      times=null;
+    }
+    const allV=series.reduce((a,s)=>a.concat(s.pts.filter(v=>v!=null)),[]);
+    if(!allV.length) return h("div",{style:{color:"var(--text-tertiary)",padding:"8px 2px"}},"No utilization recorded in this window.");
+    const ymax=Math.max(Math.max.apply(null,allV)*1.15,1)||1;
+    const W=1700,H=280,pl=48,pr=14,pt=14,pb=38;
+    const px=(i)=>pl+(i/(N-1))*(W-pl-pr);
+    const py=(v)=>H-pb-(v/ymax)*(H-pt-pb);
+    const els=[];
+    for(let g=0;g<=4;g++){ const val=ymax*g/4, y=py(val); els.push(h("line",{key:"g"+g,x1:pl,y1:y,x2:W-pr,y2:y,stroke:"var(--border-subtle)",strokeWidth:1})); els.push(h("text",{key:"gt"+g,x:pl-8,y:y+4,textAnchor:"end",fontSize:11,fill:"var(--text-tertiary)",fontFamily:"var(--font-mono)"},this.nf(val,0)+"%")); }
+    // x-axis time labels
+    const hoursTotal=st.timeRange==="24h"?24:st.timeRange==="7d"?168:720;
+    const xlab=(i)=>{ if(real&&times){ const d=new Date(times[i]); const p=(n)=>String(n).padStart(2,"0"); return hoursTotal<=24?(p(d.getHours())+":"+p(d.getMinutes())):(p(d.getMonth()+1)+"/"+p(d.getDate())); } return i===N-1?"now":("-"+Math.round((N-1-i)/(N-1)*hoursTotal)+"h"); };
+    const ticks=real?[0,Math.floor(N/4),Math.floor(N/2),Math.floor(3*N/4),N-1]:[0,6,12,18,23];
+    ticks.forEach(i=>els.push(h("text",{key:"xt"+i,x:px(i),y:H-pb+16,textAnchor:"middle",fontSize:11,fill:"var(--text-tertiary)",fontFamily:"var(--font-mono)"},xlab(i))));
+    // lines (break across null gaps)
+    series.forEach((s,si)=>{ let d="",pen=false; s.pts.forEach((v,i)=>{ if(v==null){pen=false;return;} d+=(pen?"L":"M")+px(i).toFixed(1)+" "+py(v).toFixed(1)+" "; pen=true; }); els.push(h("path",{key:"p"+si,d:d,fill:"none",stroke:colorOf(s.mpb),strokeWidth:2,strokeLinejoin:"round",strokeLinecap:"round"})); });
+    els.push(h("text",{key:"axy",x:13,y:(pt+H-pb)/2,textAnchor:"middle",fontSize:12,fontWeight:600,fill:"var(--text-secondary)",transform:"rotate(-90 13 "+((pt+H-pb)/2)+")"},"Utilization %"));
+    const svg=h("svg",{viewBox:"0 0 "+W+" "+H,style:{width:"100%",aspectRatio:"1700 / 280",height:"auto",maxWidth:1800,display:"block"},"data-om-raster":"true"},
+      h("rect",{x:pl,y:pt,width:W-pl-pr,height:H-pt-pb,fill:"var(--surface-subtle)",stroke:"var(--border-subtle)"}),els);
+    const rangeLbl={"24h":"24 h","7d":"7 d","30d":"30 d"}[st.timeRange]||"window";
+    const legend=h("div",{style:{display:"flex",gap:16,marginTop:12,flexWrap:"wrap",fontSize:12,color:"var(--text-tertiary)"}},
+      series.map(s=>this.legendDot(colorOf(s.mpb),s.mpb+" \u00b7 "+this.nf(s.mean,1)+"% avg")),
+      h("span",{style:{marginLeft:"auto"}},real?("sampled MP Blade utilization \u00b7 "+N+" points over "+rangeLbl):("modeled profile around each blade's measured "+rangeLbl+" average")));
+    return h("div",null,svg,legend);
+  }
+  avgOf(a){ let s=0,c=0; (a||[]).forEach(v=>{ if(v!=null&&isFinite(v)){s+=v;c++;} }); return c?s/c:0; }
+  readWriteMix(){
+    const h=React.createElement, st=this.state;
+    const RD="var(--hv-blue-2)", WR="var(--hv-orange-2)";
+    const per=st.mpbs.map(m=>{ let rd=0,wr=0; st.ldevs.forEach(l=>{ if(l.mpb===m){ rd+=l.readIOPS; wr+=l.writeIOPS; } }); return {mpb:m,rd,wr,tot:rd+wr}; });
+    const RD_T=per.reduce((a,b)=>a+b.rd,0), WR_T=per.reduce((a,b)=>a+b.wr,0), T=RD_T+WR_T;
+    if(T<=0) return h("div",{style:{color:"var(--text-tertiary)",padding:"8px 2px"}},"No I/O recorded in this window.");
+    const maxTot=Math.max.apply(null,per.map(p=>p.tot))||1;
+    const seg=(w,color,tot)=>{ const pctW=tot>0?(w/tot*100):0; return pctW>0?h("div",{style:{width:pctW+"%",background:color,height:"100%"}}):null; };
+    const overall=h("div",{style:{marginBottom:22}},
+      h("div",{style:{display:"flex",height:30,borderRadius:4,overflow:"hidden",border:"1px solid var(--border-subtle)"}},
+        h("div",{style:{width:(RD_T/T*100)+"%",background:RD,color:"#fff",fontSize:12,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center",whiteSpace:"nowrap"}},RD_T/T>=0.12?("Read "+this.nf(RD_T/T*100,0)+"%"):""),
+        h("div",{style:{width:(WR_T/T*100)+"%",background:WR,color:"#fff",fontSize:12,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center",whiteSpace:"nowrap"}},WR_T/T>=0.12?("Write "+this.nf(WR_T/T*100,0)+"%"):"")),
+      h("div",{style:{fontSize:12,color:"var(--text-tertiary)",marginTop:6}},"Array-wide I/O mix \u2014 "+this.nf(RD_T,0)+" read IOPS vs "+this.nf(WR_T,0)+" write IOPS ("+this.nf(WR_T>0?RD_T/WR_T:0,1)+":1 R/W)"));
+    const rows=per.map(p=>h("div",{key:p.mpb,style:{display:"flex",alignItems:"center",gap:12,margin:"10px 0"}},
+      h("div",{style:{width:74,fontSize:13,fontWeight:600,fontFamily:"var(--font-mono)"}},p.mpb),
+      h("div",{style:{flex:1,height:22,background:"var(--hv-gray-1)",borderRadius:3,overflow:"hidden"}},
+        h("div",{style:{display:"flex",height:"100%",width:(p.tot/maxTot*100)+"%",transition:"width .4s cubic-bezier(.2,0,.1,1)"}},seg(p.rd,RD,p.tot),seg(p.wr,WR,p.tot))),
+      h("div",{style:{width:64,textAlign:"right",fontSize:12,fontFamily:"var(--font-mono)",color:"var(--hv-blue-3)"}},this.nf(p.tot>0?p.rd/p.tot*100:0,0)+"% R")));
+    const legend=h("div",{style:{display:"flex",gap:18,marginTop:14,fontSize:12,color:"var(--text-tertiary)",flexWrap:"wrap"}},
+      this.legendDot(RD,"Read IOPS"),
+      this.legendDot(WR,"Write IOPS"),
+      h("span",{style:{marginLeft:"auto"}},"bar length = blade IOPS; % R = read share"));
+    return h("div",null,overall,rows,legend);
+  }
+  renderDashboard(){
+    const h=React.createElement, F=React.Fragment, st=this.state, vm=this._vm, band=vm.avg*st.tolerance/100;
+    return h(F,null,
+      h("div",{style:{display:"flex",gap:16,flexWrap:"wrap",marginBottom:18}},
+        this.kpi(st.arrayName,"Storage array","server-rack"),
+        this.kpi(String(st.mpbs.length),"MP Blades","nodes"),
+        this.kpi(this.nf(st.ldevs.length,0),"LDEVs","database"),
+        this.kpi("\u00b1"+this.nf(vm.beforeDevMax,1)+"%","Imbalance \u2014 current","target",{c:"var(--hv-red-1)",t:"before"}),
+        this.kpi("\u00b1"+this.nf(vm.afterDevMax,1)+"%","Imbalance \u2014 planned","target",{c:"var(--hv-green-3)",t:"after"}),
+        this.kpi(this.nf(st.result.plan.length,0),"LDEV moves","exchange")),
+      this.limitNote(),
+      h("div",{className:"col-2",style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:18}},
+        this.card("Before balancing","Composite load",this.chart(vm.before,vm.avg,band,vm.maxScore)),
+        this.card("After balancing","Projected load",this.chart(vm.after,vm.avg,band,vm.maxScore))),
+      h("div",{style:{marginTop:18}},this.card("Load score model","How each LDEV's load is scored",this.modelNote())));
+  }
+  renderAnalytics(){
+    const h=React.createElement, F=React.Fragment, st=this.state;
+    return h(F,null,
+      h("div",{style:{marginBottom:2}},this.card("LDEV load distribution","How load is spread across LDEVs (count per load-score band)",this.loadDist())),
+      h("div",{style:{marginTop:18}},this.card("Random vs sequential split","Load composition by MP Blade",this.rndSeqSplit())),
+      h("div",{style:{marginTop:18}},this.card("Read vs write mix","I/O read/write ratio by MP Blade",this.readWriteMix())),
+      h("div",{style:{marginTop:18}},this.card("IOPS vs throughput","Each LDEV's workload character",this.iopsThroughput())),
+      h("div",{style:{marginTop:18}},this.card("Per-blade utilization over time","MP Blade load profile across the window",this.bladeUtilOverTime())));
+  }
+  renderPlan(){
+    const h=React.createElement, F=React.Fragment, st=this.state, vm=this._vm;
+    const banner=h("div",{style:{background:"var(--hv-black)",color:"#fff",borderRadius:6,padding:"22px 26px",display:"flex",alignItems:"center",gap:24,marginBottom:18,flexWrap:"wrap"}},
+      h("div",null,h("div",{style:{fontSize:11,letterSpacing:".09em",textTransform:"uppercase",opacity:.6}},"Result"),h("div",{style:{fontSize:24,fontWeight:800,marginTop:6,letterSpacing:"-.01em"}},"\u00b1"+this.nf(vm.beforeDevMax,1)+"%  \u2192  \u00b1"+this.nf(vm.afterDevMax,1)+"%")),
+      h("div",{style:{width:1,alignSelf:"stretch",background:"rgba(255,255,255,.15)"}}),
+      h("div",null,h("div",{style:{fontSize:32,fontWeight:800,color:"var(--hv-red-1)"}},st.result.plan.length),h("div",{style:{fontSize:13,opacity:.7}},"LDEV moves to reach \u00b1"+this.nf(st.tolerance,1)+"%")),
+      h("div",{style:{marginLeft:"auto",display:"flex",gap:10}},this.btn("Export JSON",()=>this.exportJson(),"secondary","download"),this.btn("Export CSV",()=>this.exportCsv(),"primary","download")));
+    const mpbCols=[
+      {key:"mpb",label:"MPB",render:r=>h("span",{style:{fontFamily:"var(--font-mono)",fontWeight:600}},r.mpb)},
+      {key:"count",label:"LDEVs",align:"right",render:r=>this.nf(r.count,0)},
+      {key:"iops",label:"Tot IOPS",align:"right",render:r=>this.nf(r.iops,1)},
+      {key:"mbps",label:"Tot MB/s",align:"right",render:r=>this.nf(r.mbps,2)},
+      {key:"score",label:"Load score",align:"right",render:r=>h("span",{style:{fontFamily:"var(--font-mono)"}},this.nf(r.score,0))},
+      {key:"dev",label:"Dev %",align:"right",render:r=>h("span",{style:{fontWeight:700,color:r.inBand?"var(--hv-green-3)":"var(--hv-red-1)"}},this.pct(r.dev))},
+      {key:"util",label:"Avg util",align:"right",render:r=>this.nf(r.util,2)+"%"},
+      {key:"st",label:"",align:"center",render:r=>h("span",{style:{color:r.inBand?"var(--hv-green-3)":"var(--hv-red-1)",fontWeight:700}},r.inBand?"\u2713":"\u2717")}
+    ];
+    const planCols=[
+      {key:"n",label:"#",align:"right",render:r=>r.n},
+      {key:"action",label:"Action",render:r=>h("span",{style:{fontWeight:600,color:r.action==="swap"?"var(--hv-purple-3)":"var(--hv-red-2)"}},r.action==="swap"?"\u21c4 swap":"\u2192 move")},
+      {key:"ldev",label:"LDEV ID",render:r=>h("span",{style:{fontFamily:"var(--font-mono)",fontSize:13}},r.ldev)},
+      {key:"name",label:"Name",render:r=>r.name},
+      {key:"iops",label:"IOPS",align:"right",render:r=>this.nf(r.iops,1)},
+      {key:"mbps",label:"MB/s",align:"right",render:r=>this.nf(r.mbps,2)},
+      {key:"from",label:"From",render:r=>h("span",{style:{fontFamily:"var(--font-mono)"}},r.from)},
+      {key:"to",label:"To",render:r=>h("span",{style:{fontFamily:"var(--font-mono)",fontWeight:600}},"\u2192 "+r.to)}
+    ];
+    const planRows=st.result.plan.map((p,i)=>({n:i+1,action:p.action,ldev:p.ldev.id,name:p.action==="swap"?(p.ldev.name+" \u21c4 "+p.ldev2.name):p.ldev.name,iops:p.ldev.tIOPS,mbps:p.ldev.tMBps,from:p.from,to:p.to}));
+    const sec=(title,body)=>h("div",{style:this.S.card},h("div",{style:{fontSize:16,fontWeight:700,marginBottom:14}},title),body);
+    return h(F,null,this.limitNote(),banner,
+      h("div",{className:"col-2",style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:18,marginBottom:18}},sec("Before balancing",this.table(mpbCols,vm.before)),sec("After balancing",this.table(mpbCols,vm.after))),
+      sec("Migration plan \u00b7 "+st.result.plan.length+" moves",st.result.plan.length?this.table(planCols,planRows):h("div",{style:{color:"var(--text-tertiary)",padding:"12px 4px"}},vm.afterBal?"Already balanced \u2014 no migrations required.":"No single LDEV move can reduce the peak further \u2014 see the note above.")));
+  }
+  renderLdevs(){
+    const h=React.createElement, st=this.state, assign=st.result.assign;
+    let list=st.ldevs.slice().sort((a,b)=>{ const k=st.ldevSort; let av=a[k],bv=b[k]; if(k==="name"||k==="id"||k==="mpb"){ return st.ldevDir*String(av).localeCompare(String(bv)); } return st.ldevDir*(av-bv); });
+    const total=list.length; if(!st.showAll) list=list.slice(0,st.topN);
+    const cols=[
+      {key:"id",label:"LDEV ID",sort:true,render:r=>h("span",{style:{fontFamily:"var(--font-mono)",fontSize:13}},r.id)},
+      {key:"name",label:"Name",sort:true,render:r=>r.name},
+      {key:"mpb",label:"MPB",sort:true,render:r=>{ const moved=assign[r.id]!==r.mpb; return h("span",{style:{fontFamily:"var(--font-mono)"}},assign[r.id],moved?h("span",{style:{marginLeft:6,fontSize:10,fontWeight:700,color:"var(--hv-red-2)",background:"var(--hv-red-halftone)",padding:"1px 5px",borderRadius:3}},"moved"):null); }},
+      {key:"tIOPS",label:"IOPS",sort:true,align:"right",render:r=>this.nf(r.tIOPS,1)},
+      {key:"tMBps",label:"MB/s",sort:true,align:"right",render:r=>this.nf(r.tMBps,2)},
+      {key:"ioKB",label:"Avg KB",sort:true,align:"right",render:r=>this.nf(r.ioKB,1)},
+      {key:"rnd",label:"RndR",sort:true,align:"right",render:r=>this.nf(r.rnd,2)},
+      {key:"seq",label:"SeqR",sort:true,align:"right",render:r=>this.nf(r.seq,2)},
+      {key:"w1",label:"w1 (rnd)",sort:true,align:"right",render:r=>this.nf(r.w1,1)},
+      {key:"w2",label:"w2 (seq)",sort:true,align:"right",render:r=>this.nf(r.w2,1)},
+      {key:"score",label:"Score",sort:true,align:"right",render:r=>h("span",{style:{fontFamily:"var(--font-mono)",fontWeight:600}},this.nf(r.score,1))}
+    ];
+    const header=h("div",{style:{display:"flex",alignItems:"center",gap:12,marginBottom:16}},
+      h("div",null,h("div",{style:this.S.overline},"LDEV inventory"),h("div",{style:{fontSize:18,fontWeight:700}},(st.showAll?"All ":"Top ")+(st.showAll?total:Math.min(st.topN,total))+" of "+total+" LDEVs by load")),
+      h("div",{style:{marginLeft:"auto"}},this.btn(st.showAll?("Show top "+st.topN):("Show all "+total),()=>this.setState({showAll:!st.showAll}),"secondary")));
+    return h("div",{style:this.S.card},header,this.table(cols,list,true));
+  }
+  statusLine(){ const h=React.createElement, st=this.state; if(!st.statusMsg) return null; const err=st.status==="error"; return h("div",{style:{fontSize:13,color:err?"var(--hv-red-2)":"var(--text-secondary)",maxWidth:520,lineHeight:1.5}},st.statusMsg); }
+  endpointPreview(){
+    const h=React.createElement, st=this.state;
+    const flow=st.flow||[];
+    const connecting=st.status==="connecting";
+    const palette={req:"#7fd0ff",ok:"var(--hv-green-3)",err:"#ff6b6b",info:"#e8e8e8",dim:"#8a8a8a"};
+    const dot={idle:"#8a8a8a",connecting:"#f5a623",ok:"var(--hv-green-3)",error:"#ff6b6b"}[st.status]||"#8a8a8a";
+    const idleLines=[
+      {t:"",msg:"\u2192 GET /api/metrics  (browser \u2192 nginx, no credentials)",kind:"req"},
+      {t:"",msg:"nginx proxies /api/ \u2192 127.0.0.1:3001 (mpb-api service)",kind:"dim"},
+      {t:"",msg:"mpb-api: OAuth2 client_credentials \u2192 token  (secret server-side)",kind:"dim"},
+      {t:"",msg:"mpb-api: ClearSight dbapi.do, \u22645-day chunks \u2192 aggregate",kind:"dim"},
+      {t:"",msg:"\u2190 returns averaged LDEV metrics to the browser",kind:"dim"}
+    ];
+    const lines=flow.length?flow:idleLines;
+    const rows=lines.map((l,i)=>h("div",{key:i,style:{color:palette[l.kind]||"#e8e8e8",display:"flex",gap:10,padding:"1px 0"}},
+      l.t?h("span",{style:{color:"#5f5f5f",flex:"none"}},l.t):null,
+      h("span",{style:{whiteSpace:"pre-wrap",wordBreak:"break-word"}},l.msg)));
+    const waiting=connecting?h("div",{style:{color:"#f5a623",display:"flex",gap:10,padding:"1px 0"}},
+      h("span",{style:{color:"#5f5f5f",flex:"none"}},this.clock()),
+      h("span",null,"\u2026waiting on VSP360 \u00b7 "+this.nf(st.flowElapsed||0,1)+"s elapsed",
+        h("span",{style:{opacity:.6}}, (Math.floor((st.flowElapsed||0)*1.5)%2)?" \u258b":"\u2002"))):null;
+    return h("div",{style:{marginTop:16}},
+      h("div",{style:{display:"flex",alignItems:"center",gap:8,marginBottom:6}},
+        h("div",{style:this.S.overline},"Request flow \u2014 live"),
+        h("span",{style:{width:8,height:8,borderRadius:"50%",background:dot,boxShadow:connecting?"0 0 0 3px rgba(245,166,35,.2)":"none"}}),
+        h("span",{style:{fontSize:11,color:"var(--text-tertiary)",textTransform:"uppercase",letterSpacing:".06em"}},{idle:"idle",connecting:"streaming",ok:"complete",error:"error"}[st.status]||"idle")),
+      h("div",{style:{fontFamily:"var(--font-mono)",fontSize:12,background:"var(--hv-black)",color:"#e8e8e8",borderRadius:4,padding:"12px 14px",lineHeight:1.6,maxHeight:230,overflowY:"auto",border:"1px solid rgba(255,255,255,.08)",opacity:flow.length?1:.5}},
+        rows,waiting));
+  }
+  jsonExportHelp(){
+    const h=React.createElement;
+    const mono={fontFamily:"var(--font-mono)",fontSize:12,background:"var(--surface-subtle)",border:"1px solid var(--border-subtle)",borderRadius:3,padding:"1px 5px",color:"var(--hv-black)"};
+    const step=(n,body)=>h("li",{style:{marginBottom:9,lineHeight:1.55,paddingLeft:4}},body);
+    const pre=(txt)=>h("pre",{style:{margin:"7px 0 0",padding:"10px 12px",background:"var(--hv-black)",color:"#e8e8e8",borderRadius:4,fontFamily:"var(--font-mono)",fontSize:11.5,lineHeight:1.5,overflowX:"auto",whiteSpace:"pre-wrap",wordBreak:"break-word"}},txt);
+    return h("div",{style:{marginTop:16,borderTop:"1px solid var(--border-subtle)",paddingTop:14}},
+      h("div",{style:{fontSize:11,fontWeight:600,letterSpacing:".08em",textTransform:"uppercase",color:"var(--text-tertiary)",marginBottom:10}},"How to obtain a ClearSight Advanced JSON export"),
+      h("ol",{style:{margin:0,paddingLeft:18,fontSize:13,color:"var(--text-secondary)"}},
+        step(1,["In ",h("strong",null,"VSP360"),", create a service account and note its ",h("strong",null,"client ID")," and ",h("strong",null,"client secret"),"."]),
+        step(2,["Exchange those for a bearer token (OAuth2 client-credentials grant):",
+          pre("curl --location 'https://<VSP360>/auth/realms/vsp360/protocol/openid-connect/token' \\\n  --header 'Content-Type: application/x-www-form-urlencoded' \\\n  --data-urlencode 'grant_type=client_credentials' \\\n  --data-urlencode 'client_id=<CLIENT_ID>' \\\n  --data-urlencode 'client_secret=<CLIENT_SECRET>'\n\n# response: { \"access_token\": \"eyJhbGci\u2026\", \"expires_in\": 28800, \u2026 }")]),
+        step(3,["Use that ",h("code",{style:mono},"access_token")," to query ClearSight Advanced for the storage system's metrics:",
+          pre("curl --location 'https://<VSP360>/clearsightadvanced/dbapi.do?action=query&dataset=defaultDs&processSync=true' \\\n  --header 'Authorization: Bearer <ACCESS_TOKEN>' \\\n  --header 'Content-Type: application/json' \\\n  --data-raw '{\n    \"query\": \"*raidStorage[=name rx DC1-B28-B]/raidLdev[@readTransRate rx b .*][@writeTransRate rx b .*][@readIOPS rx b .*][@writeIOPS rx b .*]/raidMPB[@utilization rx b .*]\",\n    \"startTime\": \"20260626_000000\",\n    \"endTime\": \"20260627_000000\"\n  }'")]),
+        step(4,["Save the JSON response to a file, then paste its contents above and click ",h("strong",null,"Parse pasted JSON"),". (Swap ",h("code",{style:mono},"DC1-B28-B")," for your storage-system name and adjust the ",h("code",{style:mono},"YYYYMMDD_HHMMSS")," window.)"])),
+      h("div",{style:{fontSize:12,color:"var(--text-tertiary)",marginTop:10,lineHeight:1.5}},"Tip: the ",h("strong",null,"mpb-api")," service already automates steps 2\u20133 \u2014 this manual path is for when you can't reach the appliance from the browser."));
+  }
+  renderSource(){
+    const h=React.createElement, F=React.Fragment, st=this.state;
+    const field=(label,key,ph)=>h("div",null,h("label",{style:this.S.label},label),h("input",{value:st[key],placeholder:ph||"",onChange:e=>this.setState({[key]:e.target.value}),style:this.S.inp}));
+    const hostSelect=h("div",null,h("label",{style:this.S.label},"VSP360 IP address"),
+      h("select",{value:st.vspIp,onChange:e=>this.setState({vspIp:e.target.value}),style:Object.assign({},this.S.inp,{cursor:"pointer"})},
+        (st.vspHosts||[]).map(hn=>h("option",{key:hn,value:hn},hn))));
+    const apiCard=h("div",{style:this.S.card},
+      h("div",{style:{display:"flex",alignItems:"center",gap:12}},h("img",{src:"assets/icons/cloud-sync.svg",width:22,height:22}),h("div",null,h("div",{style:{fontSize:18,fontWeight:700}},"VSP 360"),h("div",{style:{fontSize:13,color:"var(--text-tertiary)"}},"Authenticated server-side \u00b7 same-origin"))),
+      h("div",{style:{height:1,background:"var(--border-subtle)",margin:"16px 0"}}),
+      h("div",{className:"col-2",style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}},
+        hostSelect,
+        field("Storage system (regex)","storageName","DC1-B28"),
+        h("div",{style:{gridColumn:"1 / -1"}},h("label",{style:this.S.label},"VSP360 endpoint"),h("input",{value:this.vspEndpointUrl()||"Enter the VSP360 IP address above",readOnly:true,style:Object.assign({},this.S.inp,{background:"var(--surface-subtle)",color:"var(--text-secondary)",cursor:"default"})}))),
+      h("div",{style:{marginTop:14,fontSize:13,color:"var(--text-secondary)",background:"var(--surface-subtle)",border:"1px solid var(--border-subtle)",borderRadius:4,padding:"12px 14px",lineHeight:1.5}},"The OAuth2 token exchange and the client secret are handled by the mpb-api service on the server. The browser never sees the secret \u2014 it only requests this same-origin data endpoint."),
+      h("div",{style:{display:"flex",alignItems:"center",gap:14,marginTop:18}},this.btn(st.status==="connecting"?"Connecting\u2026":"Fetch live metrics",()=>this.connectApi(),"primary","cloud-sync"),this.statusLine()),
+      h("div",{style:{display:"flex",gap:16,marginTop:16,flexWrap:"wrap"}},
+        h("div",{style:{flex:"1 1 180px"}},
+          h("label",{style:this.S.label},"Select time range"),
+          h("select",{value:st.timeRange,onChange:e=>this.setState({timeRange:e.target.value}),style:Object.assign({},this.S.inp,{cursor:"pointer"})},
+            h("option",{value:"24h"},"Last 24 hours"),
+            h("option",{value:"7d"},"Last 7 days"),
+            h("option",{value:"30d"},"Last 30 days"))),
+        h("div",{style:{flex:"1 1 180px"}},
+          h("label",{style:this.S.label},"Auto-refresh"),
+          h("select",{value:String(st.autoRefresh),onChange:e=>this.setAutoRefresh(e.target.value),style:Object.assign({},this.S.inp,{cursor:"pointer"})},
+            h("option",{value:"0"},"Off"),
+            h("option",{value:"30"},"Every 30 seconds"),
+            h("option",{value:"60"},"Every minute"),
+            h("option",{value:"300"},"Every 5 minutes"),
+            h("option",{value:"900"},"Every 15 minutes")),
+          (Number(st.autoRefresh)>0)?h("div",{style:{fontSize:12,color:"var(--text-tertiary)",marginTop:6}},st.source==="api"?("Next refresh in "+this.autoLeftLabel()):"Starts after the first live fetch"):null)),
+      this.endpointPreview());
+    const altCard=h("div",{style:this.S.card},
+      h("div",{style:{fontSize:18,fontWeight:700,marginBottom:4}},"Or load data without the API"),
+      h("div",{style:{fontSize:13,color:"var(--text-tertiary)",marginBottom:16,lineHeight:1.5}},"Browsers block direct calls to self-signed VSP management hosts. Use a saved JSON export, or the bundled sample to explore the tool offline."),
+      h("div",{style:{display:"flex",gap:10,marginBottom:16,flexWrap:"wrap"}},this.btn("Load sample dataset",()=>this.loadSample(),"secondary","database"),this.btn("Parse pasted JSON",()=>this.importJson(),"secondary","checklist")),
+      h("textarea",{value:st.importText,placeholder:"Paste a ClearSight Advanced JSON export here\u2026",onChange:e=>this.setState({importText:e.target.value}),style:Object.assign({},this.S.inp,{minHeight:150,fontFamily:"var(--font-mono)",fontSize:12,resize:"vertical"})}),
+      this.jsonExportHelp());
+    return h(F,null,st.demo
+      ? h("div",{style:this.S.card},
+          h("div",{style:{fontSize:18,fontWeight:700,marginBottom:4}},"Load data"),
+          h("div",{style:{fontSize:13,color:"var(--text-tertiary)",marginBottom:16,lineHeight:1.5}},"This public demo runs entirely in your browser \u2014 live VSP360 API access is disabled here. Explore with the bundled sample dataset, or paste a ClearSight Advanced JSON export."),
+          h("div",{style:{display:"flex",gap:10,marginBottom:16,flexWrap:"wrap"}},this.btn("Load sample dataset",()=>this.loadSample(),"primary","database"),this.btn("Parse pasted JSON",()=>this.importJson(),"secondary","checklist")),
+          h("textarea",{value:st.importText,placeholder:"Paste a ClearSight Advanced JSON export here\u2026",onChange:e=>this.setState({importText:e.target.value}),style:Object.assign({},this.S.inp,{minHeight:150,fontFamily:"var(--font-mono)",fontSize:12,resize:"vertical"})}),
+          this.jsonExportHelp())
+      : h("div",{className:"col-2",style:{display:"grid",gridTemplateColumns:"1.25fr 1fr",gap:18}},apiCard,altCard));
+  }
+  renderSettings(){
+    const h=React.createElement, F=React.Fragment, st=this.state;
+    const row=(label,desc,control)=>h("div",{style:{display:"flex",alignItems:"center",gap:24,padding:"18px 0",borderBottom:"1px solid var(--border-subtle)"}},h("div",{style:{flex:1}},h("div",{style:{fontSize:15,fontWeight:600}},label),h("div",{style:{fontSize:13,color:"var(--text-tertiary)",marginTop:2}},desc)),h("div",{style:{width:300,display:"flex",alignItems:"center",gap:14}},control));
+    const slider=(key,min,max,step,suffix)=>h(F,null,h("input",{type:"range",min,max,step,value:st[key],onChange:e=>this.recompute({[key]:Number(e.target.value)}),style:{flex:1}}),h("div",{style:{width:70,textAlign:"right",fontFamily:"var(--font-mono)",fontWeight:600}},this.nf(st[key],step<1?1:0)+(suffix||"")));
+    return h("div",{style:this.S.card},
+      h("div",{style:{fontSize:18,fontWeight:700,marginBottom:4}},"Balancing parameters"),
+      h("div",{style:{fontSize:13,color:"var(--text-tertiary)",marginBottom:8}},"Changes re-score every LDEV and regenerate the migration plan instantly."),
+      row("Tolerance","Target balance band (\u00b1% of average load).",slider("tolerance",0.5,15,0.5,"%")),
+      row("Random I/O threshold","Avg I/O size at/above which I/O counts as sequential.",slider("thresholdKB",16,256,4," KB")),
+      row("Write penalty factor","How many read-equivalents one write costs the MP Blade (cache, destage, RAID parity).",slider("writeWeight",1,4,0.5,"\u00d7")),
+      row("Top N LDEVs","How many busiest LDEVs to list by default.",slider("topN",5,50,5,"")),
+      h("div",{style:{marginTop:18,fontSize:13,color:"var(--text-secondary)",background:"var(--surface-subtle)",border:"1px solid var(--border-subtle)",borderRadius:4,padding:"14px 16px",lineHeight:1.5}},"These parameters mirror the balancer CLI flags. The write penalty weights each write at "+this.writeW()+"\u00d7 a read in the load score."));
+  }
+  renderScreen(){
+    if(!this.state.loaded) return this.renderSource();
+    switch(this.state.active){
+      case "dashboard": return this.renderDashboard();
+      case "plan": return this.renderPlan();
+      case "analytics": return this.renderAnalytics();
+      case "ldevs": return this.renderLdevs();
+      case "source": return this.renderSource();
+      case "settings": return this.renderSettings();
+      default: return this.renderDashboard();
+    }
+  }
+
+  limitNote(){
+    const h=React.createElement, vm=this._vm;
+    if(!vm || vm.afterBal || vm.bestPeakPct==null || !vm.maxL) return null;
+    const l=vm.maxL, mono={fontFamily:"var(--font-mono)",fontWeight:600,color:"var(--hv-black)"};
+    return h("div",{style:{background:"var(--hv-red-halftone)",border:"1px solid var(--hv-red-tint-40)",borderRadius:6,padding:"16px 20px",marginBottom:18,display:"flex",gap:14,alignItems:"flex-start"}},
+      h("img",{src:"assets/icons/target.svg",width:22,height:22,style:{flex:"none",marginTop:2}}),
+      h("div",null,
+        h("div",{style:{fontWeight:700,fontSize:15,color:"var(--hv-red-2)"}},"Balance limited by a single LDEV"),
+        h("div",{style:{fontSize:13,color:"var(--text-secondary)",marginTop:5,lineHeight:1.6}},
+          "LDEV ",h("span",{style:mono},l.id)," on ",h("span",{style:mono},l.mpb)," has a load score of "+this.nf(l.score,0)+" \u2014 "+this.nf(l.score/vm.avg*100,0)+"% of the "+this.nf(vm.avg,0)+" per-blade average. A volume can't be split across MP Blades, so the busiest blade can't drop below \u00b1"+this.nf(vm.bestPeakPct,1)+"%. The array is already at its best achievable layout; to go lower, relocate or split that volume, or raise the tolerance in Settings.")));
+  }
+
+  computeVM(){
+    const st=this.state; if(!st.result) return null;
+    const avg=st.result.avg;
+    const before=this.summary(st.ldevs,st.mpbs,l=>l.mpb,avg);
+    const after=this.summary(st.ldevs,st.mpbs,l=>st.result.assign[l.id],avg);
+    let maxL=null; st.ldevs.forEach(l=>{ if(!maxL || l.score>maxL.score) maxL=l; });
+    const bestPeakPct=(maxL && avg>0 && maxL.score>avg*(1+st.tolerance/100)) ? (maxL.score/avg-1)*100 : null;
+    return {avg,before,after,beforeBal:before.every(b=>b.inBand),afterBal:after.every(a=>a.inBand),
+      beforeDevMax:Math.max.apply(null,before.map(b=>Math.abs(b.dev))),
+      afterDevMax:Math.max.apply(null,after.map(a=>Math.abs(a.dev))),
+      maxL:maxL,bestPeakPct:bestPeakPct,
+      maxScore:Math.max.apply(null,[avg].concat(before.map(b=>b.score),after.map(a=>a.score)))*1.06};
+  }
+
+  renderDemoBanner(){
+    const h=React.createElement; if(!this.state.demo) return null;
+    return h("div",{style:{flex:"none",background:"var(--hv-black)",color:"#fff",display:"flex",alignItems:"center",gap:12,padding:"9px 32px",fontSize:13,borderBottom:"3px solid var(--hv-red-1)"}},
+      h("span",{style:{fontSize:10,fontWeight:700,letterSpacing:".08em",textTransform:"uppercase",background:"var(--hv-red-1)",color:"#fff",padding:"3px 8px",borderRadius:3}},"Demo"),
+      h("span",{style:{opacity:.9}},"Public demo \u00b7 live VSP360 API disabled. Running on sample data \u2014 use ",h("strong",null,"Load sample dataset")," or paste a JSON export. For live arrays, deploy behind nginx + the mpb-api service."));
+  }
+  renderVals(){
+    this._vm=this.computeVM();
+    const h=React.createElement;
+    const backdrop=h("div",{className:"nav-backdrop",onClick:()=>this.setState({navOpen:false})});
+    return {sidebar:this.renderSidebar(),topbar:this.renderTopbar(),demoBanner:this.renderDemoBanner(),screen:this.renderScreen(),toastEl:this.renderToast(),backdrop:backdrop,navClass:this.state.navOpen?"nav-open":""};
+  }
+}
+</script>
+</body>
+</html>

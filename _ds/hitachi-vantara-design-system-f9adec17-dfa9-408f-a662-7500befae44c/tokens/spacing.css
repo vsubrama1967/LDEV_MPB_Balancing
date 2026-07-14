@@ -1,0 +1,31 @@
+/* ============================================================
+   Hitachi Vantara — Spacing & Layout Tokens
+   4px base grid. The deck is built on generous margins and a
+   strong left-aligned content column.
+   ============================================================ */
+:root {
+  --space-0: 0;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+  --space-20: 80px;
+  --space-24: 96px;
+  --space-32: 128px;
+
+  /* Component-level rhythm */
+  --gap-inline: var(--space-2);
+  --gap-stack: var(--space-4);
+  --gap-section: var(--space-12);
+
+  /* Layout */
+  --container-max: 1200px;
+  --content-gutter: var(--space-8);
+  --slide-margin: 64px;   /* deck content inset */
+}
